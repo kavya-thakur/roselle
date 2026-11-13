@@ -19,9 +19,10 @@ export default async function DashboardLayout({ children }: LayoutProps<"/">) {
         redirect("/login");
     }
 
-    const [page, unread] = await Promise.all([
+    const [page, unread, pendingReviews] = await Promise.all([
         prisma.page.findUniqueOrThrow({ where: { id: user.page.id }, select: { draft: true, publishedAt: true } }),
         prisma.enquiry.count({ where: { pageId: user.page.id, readAt: null } }),
+        prisma.review.count({ where: { pageId: user.page.id, approvedAt: null } }),
     ]);
     const draft = pageSchema.safeParse(page.draft);
     const checklist = draft.success ? setupChecklist(draft.data, !!page.publishedAt) : null;
@@ -36,7 +37,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/">) {
                     <LogoutButton />
                 </div>
 
-                <SidebarNav admin={isAdmin(user.email)} unread={unread} />
+                <SidebarNav admin={isAdmin(user.email)} counts={{ "/inbox": unread, "/reviews": pendingReviews }} />
 
                 {/* the checklist disappears once everything on it is done */}
                 {checklist && checklist.done < checklist.steps.length && <SetupChecklist steps={checklist.steps} done={checklist.done} />}

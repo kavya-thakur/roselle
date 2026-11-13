@@ -79,6 +79,21 @@ export const blockSchema = z.discriminatedUnion("type", [
     z.object({ ...blockBase, type: z.literal("music"), url, title: text(120) }),
     // a map of one place, from a plain address: no API key, nothing to pay for
     z.object({ ...blockBase, type: z.literal("map"), address: text(200), title: text(120) }),
+    // What the creator offers and roughly what it costs, each with an Enquire button that opens
+    // the enquiry form with that service already chosen. Prices are free text ("from ₹25,000",
+    // "$90 an hour") because creators price in very different ways.
+    z.object({
+        ...blockBase,
+        type: z.literal("services"),
+        title: text(120),
+        items: z
+            .array(z.object({ id: z.string().min(1).max(40), name: text(80), price: text(40), description: text(400) }))
+            .max(12)
+            .default([]),
+    }),
+    // What clients said: the approved reviews (they live in the Review table, not in the page,
+    // because clients write them, not the creator)
+    z.object({ ...blockBase, type: z.literal("reviews"), title: text(120) }),
     // "Work with me": a short form visitors fill in; it lands in the creator's inbox and email
     z.object({
         ...blockBase,

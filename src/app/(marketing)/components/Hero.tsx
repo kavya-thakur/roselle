@@ -98,16 +98,16 @@ export function Hero({ profiles }: { profiles: PageDoc[] }) {
     );
 
     return (
-        <section ref={ref} aria-labelledby="hero-title" className="relative flex min-h-[max(100svh,720px)] items-center justify-center overflow-hidden bg-shell px-5 pt-24 pb-16 text-forest max-md:min-h-0 max-md:flex-col max-md:pb-14">
+        <section ref={ref} aria-labelledby="hero-title" className="relative flex min-h-[max(100svh,720px)] items-center justify-center overflow-hidden bg-shell px-5 pt-24 pb-16 text-forest max-lg:min-h-0 max-lg:flex-col max-lg:pb-14">
             {/* without JavaScript nothing would reveal the hidden pieces */}
             <noscript>
                 <style>{".motion-safe\\:invisible{visibility:visible!important}"}</style>
             </noscript>
 
             {/* ---------- the floating profiles ---------- */}
-            {/* On phones there's no room round the words, so the four cards become a fanned row under
+            {/* Below laptop width there's no room round the words, so the four cards become a fanned row under
                 the claim box (order-2): same cards, same motion, just placed in the flow */}
-            <div aria-hidden className="absolute inset-0 max-md:relative max-md:inset-auto max-md:order-2 max-md:mt-12 max-md:flex max-md:w-full max-md:justify-center">
+            <div aria-hidden className="absolute inset-0 max-lg:relative max-lg:inset-auto max-lg:order-2 max-lg:mt-12 max-lg:flex max-lg:w-full max-lg:justify-center">
                 {SPOTS.map((spot, i) => (
                     <div
                         key={i}
@@ -115,8 +115,8 @@ export function Hero({ profiles }: { profiles: PageDoc[] }) {
                         data-depth={spot.depth}
                         data-tilt={spot.tilt}
                         data-side={spot.left ? "left" : "right"}
-                        // phones: in the row, overlapping a little, the middle two lifted
-                        className={`absolute max-md:relative max-md:inset-auto! max-md:-mx-2.5 ${i === 1 || i === 2 ? "max-md:-mt-4" : "max-md:mt-6"}`}
+                        // phones and tablets: in the row, overlapping a little, the middle two lifted
+                        className={`absolute max-lg:relative max-lg:inset-auto! max-lg:-mx-2.5 ${i === 1 || i === 2 ? "max-lg:-mt-4" : "max-lg:mt-6"}`}
                         style={{ left: spot.left, right: spot.right, top: spot.top, zIndex: Math.round(spot.depth * 10) }}
                     >
                         <div data-parallax>

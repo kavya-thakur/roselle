@@ -101,3 +101,13 @@ export function targetOf(block: Block) {
 export function hasCaseStudy(block: Block) {
     return block.type === "project" && (block.body.trim() !== "" || block.images.some((image) => safeHref(image.src)));
 }
+
+// Where a client pays, from what the creator typed: a payment page address (Stripe, Razorpay,
+// PayPal...) or a UPI id. UPI is shown as the id itself, because email apps don't open upi:// links.
+export function paymentTarget(raw: string): { kind: "url"; href: string } | { kind: "upi"; id: string } | undefined {
+    const value = raw.trim();
+    // a UPI handle after the @ is letters only ("ada@okbank", "98400@ybl"); an email domain has a dot
+    if (/^[\w.-]+@[a-z]+$/i.test(value)) return { kind: "upi", id: value };
+    const href = safeHref(value);
+    return href?.startsWith("https://") ? { kind: "url", href } : undefined;
+}

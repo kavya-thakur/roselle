@@ -5,9 +5,9 @@ import { IconArrowDownRight, IconArrowUpRight, IconMinus } from "@tabler/icons-r
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { prisma } from "@/lib/db/prisma";
-import { pageStats, RANGES, type Range } from "@/lib/analytics/stats";
+import { pageStats, RANGES, type PageStats, type Range } from "@/lib/analytics/stats";
 import { pageSchema, type Block } from "@/lib/validations/page";
-import { formatNumber, formatPercent } from "@/lib/utils/format";
+import { formatHours, formatMoney, formatNumber, formatPercent } from "@/lib/utils/format";
 import { can } from "@/lib/plans";
 import { TrendChart } from "./TrendChart";
 import { SITE_HOST } from "@/lib/site";
@@ -112,6 +112,9 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/analyt
                     )}
                 </section>
 
+                <Funnel current={current} replyHours={stats.replyHours} currency={user.currency} />
+                {stats.services.length > 0 && <Services rows={stats.services} currency={user.currency} />}
+
                 <div className="mt-3 grid gap-3 lg:grid-cols-[1.4fr_1fr]">
                     <section className="rounded-3xl bg-paper p-5 shadow-soft sm:p-6">
                         <h2 className="text-lg font-semibold">Top links</h2>
@@ -143,7 +146,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/analyt
                     </section>
 
                     <div className="grid gap-3">
-                        <Breakdown title="Where visitors come from" rows={stats.sources} total={current.views} empty="Sources appear after your first visits." />
+                        <Sources rows={stats.sources} />
                         <Breakdown
                             title="Devices"
                             rows={stats.devices.map((row) => ({ ...row, label: DEVICE_LABELS[row.label] ?? row.label }))}
@@ -154,6 +157,112 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/analyt
                 </div>
             </div>
         </main>
+    );
+}
+
+// The path from a visit to paid work: how many people came, how many asked, how many booked, and
+// what that work is worth. Each step says what share of the step before it made it through.
+function Funnel({ current, replyHours, currency }: { current: PageStats["current"]; replyHours: number | null; currency: string }) {
+    const steps = [
+        { label: "Visitors", value: formatNumber(current.visitors), note: "came to your page" },
+        { label: "Enquiries", value: formatNumber(current.enquiries), note: current.visitors ? `${formatPercent(current.enquiries / current.visitors)} of visitors asked` : "–" },
+        { label: "Booked", value: formatNumber(current.booked), note: current.enquiries ? `${formatPercent(current.booked / current.enquiries)} of enquiries` : "–" },
+        { label: "Worth", value: formatMoney(current.bookedValue, currency), note: "from those bookings" },
+    ];
+
+    return (
+        <section className="mt-3 rounded-3xl bg-paper p-5 shadow-soft sm:p-6">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-lg font-semibold">From visit to booking</h2>
+                <Link href="/inbox" className="text-sm font-semibold text-pink hover:underline">
+                    Update bookings in your inbox
+                </Link>
+            </div>
+            <ol className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                {steps.map((step, i) => (
+                    <li key={step.label} className="relative rounded-2xl bg-sand/60 p-4">
+                        <p className="text-xs font-semibold text-muted">
+                            {i + 1}. {step.label}
+                        </p>
+                        <p className="mt-1.5 font-display text-3xl tabular-nums">{step.value}</p>
+                        <p className="mt-1 text-xs text-muted">{step.note}</p>
+                    </li>
+                ))}
+            </ol>
+            {/* how fast they answer is the one thing in this funnel fully in their hands */}
+            {replyHours !== null && (
+                <p className="mt-4 text-sm text-muted">
+                    You reply in <span className="font-semibold text-ink">{formatHours(replyHours)}</span> on average.
+                    {replyHours > 24 ? " Replying within a day wins noticeably more work." : " Quick replies win work: keep it up."}
+                </p>
+            )}
+        </section>
+    );
+}
+
+// How each service sells: what people ask about, how much of it turns into work, and what that
+// work is usually worth. Tells a creator what to promote, and what might be priced wrong.
+function Services({ rows, currency }: { rows: PageStats["services"]; currency: string }) {
+    return (
+        <section className="mt-3 rounded-3xl bg-paper p-5 shadow-soft sm:p-6">
+            <h2 className="text-lg font-semibold">Your services</h2>
+            <table className="mt-4 w-full text-sm">
+                <thead>
+                    <tr className="text-left text-xs text-faint">
+                        <th className="pb-2 font-semibold">Service</th>
+                        <th className="w-20 pb-2 text-right font-semibold">Enquiries</th>
+                        <th className="w-20 pb-2 text-right font-semibold">Booked</th>
+                        <th className="hidden w-24 pb-2 text-right font-semibold sm:table-cell">Booking rate</th>
+                        <th className="w-28 pb-2 text-right font-semibold">Average value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.map((row) => (
+                        <tr key={row.service} className="border-t border-line">
+                            <td className="max-w-0 truncate py-2.5 pr-3 font-medium">{row.service}</td>
+                            <td className="py-2.5 text-right tabular-nums">{formatNumber(row.enquiries)}</td>
+                            <td className="py-2.5 text-right font-semibold tabular-nums">{formatNumber(row.won)}</td>
+                            <td className="hidden py-2.5 text-right text-muted tabular-nums sm:table-cell">{formatPercent(row.rate)}</td>
+                            <td className="py-2.5 text-right tabular-nums">{row.averageValue === null ? "–" : formatMoney(row.averageValue, currency)}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </section>
+    );
+}
+
+// Which places send people who actually get in touch, not just people who look
+function Sources({ rows }: { rows: PageStats["sources"] }) {
+    return (
+        <section className="rounded-3xl bg-paper p-5 shadow-soft sm:p-6">
+            <h2 className="text-lg font-semibold">Where they come from</h2>
+            {rows.length === 0 ? (
+                <p className="mt-4 text-sm text-muted">Sources appear after your first visits.</p>
+            ) : (
+                <table className="mt-4 w-full text-sm">
+                    <thead>
+                        <tr className="text-left text-xs text-faint">
+                            <th className="pb-2 font-semibold">Source</th>
+                            <th className="w-14 pb-2 text-right font-semibold">Views</th>
+                            <th className="w-18 pb-2 text-right font-semibold">Enquiries</th>
+                            <th className="w-16 pb-2 text-right font-semibold">Booked</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {/* the top eight; the rest are too small to matter here */}
+                        {rows.slice(0, 8).map((row) => (
+                            <tr key={row.label} className="border-t border-line">
+                                <td className="max-w-0 truncate py-2.5 pr-3 font-medium">{row.label}</td>
+                                <td className="py-2.5 text-right text-muted tabular-nums">{formatNumber(row.count)}</td>
+                                <td className="py-2.5 text-right tabular-nums">{formatNumber(row.enquiries)}</td>
+                                <td className="py-2.5 text-right font-semibold tabular-nums">{formatNumber(row.booked)}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
+        </section>
     );
 }
 

@@ -33,7 +33,8 @@ export function Chapters({ page, looks }: { page: PageDoc; looks: PageDoc[] }) {
     useGSAP(
         () => {
             const section = ref.current!;
-            const line = section.querySelector("[data-line]");
+            // two lines: the wide one for two columns, the thin thread for phones and tablets
+            const line = section.querySelectorAll("[data-line]");
 
             // the colour changes happen with or without reduced motion: they're a change of
             // state, just softened when motion is welcome
@@ -91,10 +92,11 @@ export function Chapters({ page, looks }: { page: PageDoc; looks: PageDoc[] }) {
 
     return (
         <section ref={ref} id="features" aria-label="How Roselle works" className="relative overflow-hidden [--accent:#e0408f]" style={{ backgroundColor: MOODS[0].bg, color: MOODS[0].ink }}>
-            {/* the fat line, behind everything. Its box is drawn at desktop proportions, so it only shows
-                from tablets up. It runs behind the pictures on the right and only crosses to the left in
-                the gaps between chapters (each chapter is 900 of these 2700 units tall), never through the words */}
-            <svg aria-hidden viewBox="0 0 1440 2700" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 hidden size-full md:block">
+            {/* the fat line, behind everything. Its box is drawn at laptop proportions (two columns), so it
+                only shows from there up. It runs behind the pictures on the right and only crosses to the
+                left in the gaps between chapters (each chapter is 900 of these 2700 units tall), never
+                through the words */}
+            <svg aria-hidden viewBox="0 0 1440 2700" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 hidden size-full lg:block">
                 <path
                     data-line
                     d="M1520 40 C 1200 160, 1000 380, 1120 640 C 1200 820, 600 760, 300 860 C 40 950, 200 1110, 760 1120 C 1250 1130, 1250 1400, 1120 1540 C 1000 1680, 600 1660, 300 1760 C 40 1850, 200 2010, 760 2020 C 1250 2030, 1200 2400, 1520 2650"
@@ -102,6 +104,20 @@ export function Chapters({ page, looks }: { page: PageDoc; looks: PageDoc[] }) {
                     stroke={MOODS[0].line}
                     strokeWidth="46"
                     strokeLinecap="round"
+                />
+            </svg>
+
+            {/* phones and tablets: one column, so the line becomes a thread weaving down the right-hand
+                margin instead, drawn the same way as you scroll */}
+            <svg aria-hidden viewBox="0 0 100 2700" preserveAspectRatio="none" className="pointer-events-none absolute inset-y-0 right-1 h-full w-4 lg:hidden">
+                <path
+                    data-line
+                    d="M50 0 C 95 150, 5 300, 50 450 S 95 750, 50 900 S 5 1200, 50 1350 S 95 1650, 50 1800 S 5 2100, 50 2250 S 95 2550, 50 2700"
+                    fill="none"
+                    stroke={MOODS[0].line}
+                    strokeWidth="7"
+                    strokeLinecap="round"
+                    vectorEffect="non-scaling-stroke"
                 />
             </svg>
 

@@ -19,6 +19,14 @@ model User {
   email           String    @unique
   passwordHash    String
   plan            Plan      @default(FREE)
+  // what booking amounts in the inbox and analytics are counted in: an ISO code like "INR"
+  currency        String    @default("USD")
+  // what they'd like to book in a calendar month, shown as progress in the inbox
+  monthlyGoal     Int?
+  // the Monday email with last week's numbers
+  weeklyEmail     Boolean   @default(true)
+  // where clients pay them: a payment page address or a UPI id, remembered from the last request
+  paymentLink     String?
   // set when they click the link in the welcome email; nothing is blocked before that
   emailVerifiedAt DateTime?
   createdAt       DateTime  @default(now())
@@ -82,23 +90,80 @@ model Page {
   events    Event[]
   reports   Report[]
   enquiries Enquiry[]
+  reviews   Review[]
 }
 
-// A message a visitor sent through a "Work with me" block. The creator gets it by email (reply
-// goes straight to the visitor) and in their inbox at /inbox.
+// Where an enquiry is on its way to paid work. The creator moves it along in the inbox.
+enum EnquiryStatus {
+  NEW
+  REPLIED
+  BOOKED
+  PAID
+  // not going ahead
+  CLOSED
+}
+
+// A message a visitor sent through a "Work with me" or Services block. The creator gets it by
+// email (Reply goes straight to the visitor) and in their inbox at /inbox, where it becomes a
+// booking.
 model Enquiry {
-  id        Int       @id @default(autoincrement())
+  id        Int           @id @default(autoincrement())
   pageId    Int
   name      String
   email     String
   message   String
-  createdAt DateTime  @default(now())
+  // the service they asked about, as it was named then, so renaming it later doesn't rewrite history
+  service   String?
+  // the date they'd like it, "2026-12-05"; a plain date with no time zone, as they picked it
+  wantedOn  String?
+  // where the visitor came from ("instagram.com", "direct"), worked out like page views are
+  source    String        @default("direct")
+  status    EnquiryStatus @default(NEW)
+  // what the booking is worth, in whole units of the creator's currency
+  // ponytail: whole units only (no cents); store minor units if invoices ever need exact amounts
+  amount    Int?
+  // when it became a booking; "booked this month" is counted from this
+  bookedAt  DateTime?
+  // when the creator first moved it on from New: how fast they reply
+  repliedAt DateTime?
+  // the morning reminder about it went out (once per enquiry)
+  remindedAt DateTime?
+  // asking the client for a review: the hash of the one-time link, and when it was sent
+  reviewTokenHash   String?   @unique
+  reviewRequestedAt DateTime?
+  // the latest payment request emailed to the client
+  paymentRequestedAt     DateTime?
+  paymentRequestedAmount Int?
+  createdAt DateTime      @default(now())
   // opened in the inbox
   readAt    DateTime?
 
-  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  page   Page    @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  review Review?
 
   @@index([pageId, createdAt])
+  @@index([status, createdAt])
+}
+
+// What a client said after the work. Only the one-time link sent from their own enquiry can
+// leave one, so every review is from someone who really paid. Shown once the creator approves it.
+model Review {
+  id         Int       @id @default(autoincrement())
+  pageId     Int
+  // the enquiry it came from; kept if that enquiry is deleted later
+  enquiryId  Int?      @unique
+  name       String
+  rating     Int
+  text       String
+  // the service, as named when the work was booked
+  service    String?
+  createdAt  DateTime  @default(now())
+  approvedAt DateTime?
+
+  page    Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  enquiry Enquiry? @relation(fields: [enquiryId], references: [id], onDelete: SetNull)
+
+  @@index([pageId, approvedAt])
 }
 
 // A visitor flagging a page (the "Report" link at the bottom of every public page).

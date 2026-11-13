@@ -1,4 +1,5 @@
 import type { PageDoc } from "@/lib/validations/page";
+import { hasCaseStudy } from "@/lib/pages/links";
 
 export type Plan = "FREE" | "PRO";
 
@@ -14,6 +15,10 @@ export const FEATURES = {
     music: { label: "Music players", pro: false, usedBy: (page: PageDoc) => page.blocks.some((block) => block.type === "music") },
     maps: { label: "Maps", pro: false, usedBy: (page: PageDoc) => page.blocks.some((block) => block.type === "map") },
     tips: { label: "Tips & payments", pro: false, usedBy: (page: PageDoc) => page.blocks.some((block) => block.type === "tip") },
+    caseStudies: { label: "Project case studies", pro: false, usedBy: (page: PageDoc) => page.blocks.some(hasCaseStudy) },
+    services: { label: "Services with Enquire buttons", pro: false, usedBy: (page: PageDoc) => page.blocks.some((block) => block.type === "services") },
+    reviews: { label: "Verified client reviews", pro: false, usedBy: (page: PageDoc) => page.blocks.some((block) => block.type === "reviews") },
+    contactForm: { label: "Contact form & booking inbox", pro: false, usedBy: (page: PageDoc) => page.blocks.some((block) => block.type === "contact") },
     longAnalytics: { label: "90-day analytics", pro: false, usedBy: () => false },
 } as const;
 

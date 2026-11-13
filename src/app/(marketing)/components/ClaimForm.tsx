@@ -10,7 +10,7 @@ export function ClaimForm({ className = "" }: { className?: string }) {
         >
             <label className="flex min-w-0 flex-1 items-center pl-4 text-[15px]">
                 <span className="sr-only">Your page address:</span>
-                <span className="shrink-0 text-muted">{SITE_HOST}/</span>
+                <span className="shrink-0 text-muted max-sm:text-[14px]">{SITE_HOST}/</span>
                 <input
                     name="username"
                     placeholder="yourname"

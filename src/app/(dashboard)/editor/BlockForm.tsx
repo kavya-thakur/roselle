@@ -1,11 +1,17 @@
 "use client";
 
-import { IconPlus, IconX } from "@tabler/icons-react";
+import { IconArrowUp, IconPlus, IconX } from "@tabler/icons-react";
 
 import { smallInputClass } from "@/components/Field";
 import { TIP_LABELS, tipHref } from "@/lib/pages/links";
-import { TIP_PROVIDERS, type Block, type TipProvider } from "@/lib/validations/page";
-import { fromLocalInput, ImageInput, Label, Toggle, toLocalInput } from "./controls";
+import { MAX_GALLERY, TIP_PROVIDERS, type Block, type TipProvider } from "@/lib/validations/page";
+
+const LAYOUT_HINTS = {
+    grid: "Even squares, neat and calm.",
+    masonry: "Every photo keeps its own shape, portrait or landscape.",
+    carousel: "One row people swipe through, photos shown large.",
+};
+import { fromLocalInput, ImageInput, ImageListField, Label, moveUp, Segmented, Toggle, toLocalInput } from "./controls";
 
 // The fields for one block, by its type. Every keystroke updates the
 // block straight away (the preview follows, autosave waits for a pause).
@@ -68,31 +74,23 @@ export function BlockForm({ block, onChange }: { block: Block; onChange: (block:
             {block.type === "gallery" && (
                 <>
                     {text("title", "Title (optional)")}
-                    <div className="space-y-2">
-                        <Label>Images</Label>
-                        {block.images.map((image, i) => {
-                            const setImage = (patch: Partial<typeof image>) => onChange({ ...block, images: block.images.map((existing, j) => (j === i ? { ...existing, ...patch } : existing)) });
-                            return (
-                                <div key={i} className="flex gap-1.5 rounded-lg bg-sand/60 p-2">
-                                    <div className="min-w-0 flex-1 space-y-1.5">
-                                        <ImageInput id={`${block.id}-image-${i}`} value={image.src} onChange={(src) => setImage({ src })} />
-                                        <input value={image.alt} onChange={(event) => setImage({ alt: event.target.value })} placeholder="Description" aria-label="Image description" className={smallInputClass} />
-                                    </div>
-                                    <button
-                                        onClick={() => onChange({ ...block, images: block.images.filter((_, j) => j !== i) })}
-                                        aria-label="Remove image"
-                                        className="flex size-9 shrink-0 items-center justify-center rounded-lg text-faint hover:bg-paper hover:text-danger"
-                                    >
-                                        <IconX size={15} />
-                                    </button>
-                                </div>
-                            );
-                        })}
-                        {block.images.length < 12 && (
-                            <button onClick={() => onChange({ ...block, images: [...block.images, { src: "", alt: "" }] })} className="flex items-center gap-1 text-[13px] font-semibold text-pink hover:underline">
-                                <IconPlus size={14} /> Add image
-                            </button>
-                        )}
+                    <div>
+                        <Label>Layout</Label>
+                        <Segmented
+                            label="Gallery layout"
+                            value={block.layout}
+                            onChange={(layout) => onChange({ ...block, layout })}
+                            options={[
+                                { value: "grid", label: "Grid" },
+                                { value: "masonry", label: "Masonry" },
+                                { value: "carousel", label: "Carousel" },
+                            ]}
+                        />
+                        <p className="mt-1.5 text-xs text-muted">{LAYOUT_HINTS[block.layout]}</p>
+                    </div>
+                    <div>
+                        <Label>Photos</Label>
+                        <ImageListField id={block.id} images={block.images} max={MAX_GALLERY} onChange={(images) => onChange({ ...block, images })} />
                     </div>
                 </>
             )}
@@ -126,6 +124,45 @@ export function BlockForm({ block, onChange }: { block: Block; onChange: (block:
                             className={smallInputClass}
                         />
                     </div>
+
+                    {/* the case study: optional, and it changes what the card does, so it says so */}
+                    <div className="rounded-xl border border-line p-3.5">
+                        <p className="text-sm font-semibold">Case study</p>
+                        <p className="mt-0.5 text-xs text-muted">Tell the story and add more pictures, and the card opens its own page for this project.</p>
+                        <div className="mt-3 space-y-3">
+                            {text("body", "The story", { long: true, placeholder: "The brief, what you made, how it went…" })}
+                            <div>
+                                <Label>Pictures</Label>
+                                <ImageListField id={`${block.id}-case`} images={block.images} max={MAX_GALLERY} onChange={(images) => onChange({ ...block, images })} />
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {block.type === "services" && (
+                <>
+                    {text("title", "Heading (optional)", { placeholder: "Services" })}
+                    <ServiceList block={block} onChange={onChange} />
+                </>
+            )}
+
+            {block.type === "reviews" && (
+                <>
+                    {text("title", "Heading", { placeholder: "Kind words" })}
+                    <p className="text-xs text-muted">
+                        Shows the reviews you approve. To get one, mark a finished job Paid in your Inbox and press <span className="font-semibold text-ink">Ask for a review</span>: your client gets a link,
+                        and only they can use it.
+                    </p>
+                </>
+            )}
+
+            {block.type === "contact" && (
+                <>
+                    {text("title", "Heading", { placeholder: "Work with me" })}
+                    {text("text", "A line about what you take on", { long: true })}
+                    {text("button", "Button", { placeholder: "Send message" })}
+                    <p className="text-xs text-muted">Visitors leave their name, email and a message. It arrives in your Inbox and by email, and Reply goes straight to them.</p>
                 </>
             )}
 
@@ -166,6 +203,56 @@ export function BlockForm({ block, onChange }: { block: Block; onChange: (block:
                     <p className="text-xs text-muted">The money goes straight to you. Roselle never touches it and takes no fee.</p>
                 </>
             )}
+        </div>
+    );
+}
+
+type Services = Extract<Block, { type: "services" }>;
+
+// The services in a Services block, each a small card: name and price on one line, what's
+// included under them. Moved up one place at a time, like gallery pictures.
+function ServiceList({ block, onChange }: { block: Services; onChange: (block: Block) => void }) {
+    const { items } = block;
+    const setItems = (next: Services["items"]) => onChange({ ...block, items: next });
+    const setItem = (i: number, patch: Partial<Services["items"][number]>) => setItems(items.map((item, j) => (j === i ? { ...item, ...patch } : item)));
+
+    return (
+        <div className="space-y-2">
+            {items.map((item, i) => (
+                <div key={item.id} className="flex gap-1.5 rounded-lg bg-sand/60 p-2">
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                        <div className="grid grid-cols-[1fr_8.5rem] gap-1.5">
+                            <input value={item.name} onChange={(event) => setItem(i, { name: event.target.value })} placeholder="Portrait session" aria-label="Service name" maxLength={80} className={smallInputClass} />
+                            <input value={item.price} onChange={(event) => setItem(i, { price: event.target.value })} placeholder="from $300" aria-label="Price" maxLength={40} className={smallInputClass} />
+                        </div>
+                        <textarea
+                            value={item.description}
+                            onChange={(event) => setItem(i, { description: event.target.value })}
+                            placeholder="What's included"
+                            aria-label="What's included"
+                            maxLength={400}
+                            rows={2}
+                            className={`${smallInputClass} h-auto py-2 leading-relaxed`}
+                        />
+                    </div>
+                    <div className="flex flex-col">
+                        <button type="button" onClick={() => setItems(items.filter((_, j) => j !== i))} aria-label={`Remove ${item.name || "service"}`} className="flex size-9 items-center justify-center rounded-lg text-faint hover:bg-paper hover:text-danger">
+                            <IconX size={15} />
+                        </button>
+                        {i > 0 && (
+                            <button type="button" onClick={() => setItems(moveUp(items, i))} aria-label="Move up" className="flex size-9 items-center justify-center rounded-lg text-faint hover:bg-paper hover:text-ink">
+                                <IconArrowUp size={15} />
+                            </button>
+                        )}
+                    </div>
+                </div>
+            ))}
+            {items.length < 12 && (
+                <button type="button" onClick={() => setItems([...items, { id: crypto.randomUUID().slice(0, 8), name: "", price: "", description: "" }])} className="flex items-center gap-1 text-[13px] font-semibold text-pink hover:underline">
+                    <IconPlus size={14} /> Add a service
+                </button>
+            )}
+            <p className="text-xs text-muted">Each one gets an Enquire button. Enquiries arrive in your Inbox with the service already named, ready to turn into a booking.</p>
         </div>
     );
 }

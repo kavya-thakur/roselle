@@ -31,7 +31,7 @@ export function Nav() {
                 </nav>
 
                 <div className="flex items-center gap-4 sm:gap-6">
-                    <Link href="/login" className="text-[14px] font-semibold whitespace-nowrap text-forest sm:text-[15px] transition-colors duration-300 hover:text-pink">
+                    <Link href="/login" className="text-[14px] font-semibold whitespace-nowrap text-forest max-[379px]:hidden sm:text-[15px] transition-colors duration-300 hover:text-pink">
                         Log in
                     </Link>
                     <Pill href="/register" tone="forest" size="small">

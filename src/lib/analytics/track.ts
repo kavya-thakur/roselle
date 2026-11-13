@@ -14,7 +14,7 @@ function deviceOf(userAgent: string) {
 
 // "instagram.com" from the address they came from; a campaign tag (?utm_source=) wins.
 // Coming from Roselle itself (the editor's "View page") or from nowhere is "direct".
-function sourceOf(referrer: string | undefined, utmSource: string | undefined) {
+export function sourceOf(referrer: string | undefined, utmSource: string | undefined) {
     if (utmSource) return utmSource.toLowerCase().slice(0, 60);
     try {
         const host = new URL(referrer ?? "").hostname.replace(/^www\./, "");

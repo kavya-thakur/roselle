@@ -8,9 +8,19 @@ import { api } from "@/lib/api/client";
 const field =
     "w-full rounded-[min(var(--page-radius),0.85rem)] border border-[color-mix(in_oklab,var(--page-text)_22%,transparent)] bg-[color-mix(in_oklab,var(--page-text)_5%,transparent)] px-3.5 py-2.5 text-[15px] text-(--page-text) outline-none transition placeholder:text-(--page-muted) placeholder:opacity-70 focus:border-(--page-text)";
 
-// The form inside a "Work with me" block. Plain inputs styled by the page's own colours.
-// Without a pageId (the editor's preview, the landing page) it shows but doesn't send.
-export function ContactForm({ pageId, blockId, button }: { pageId?: number; blockId: string; button: string }) {
+interface ContactFormProps {
+    pageId?: number;
+    blockId: string;
+    button: string;
+    // from a Services block: which service, and asking for a date (bookings are about when)
+    serviceId?: string;
+    askDate?: boolean;
+}
+
+// The enquiry form: inside a "Work with me" block, or opened under a service. Plain inputs styled
+// by the page's own colours. Without a pageId (the editor's preview, the landing page) it shows
+// but doesn't send.
+export function ContactForm({ pageId, blockId, button, serviceId, askDate = false }: ContactFormProps) {
     const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
     const [error, setError] = useState<string | null>(null);
 
@@ -22,7 +32,10 @@ export function ContactForm({ pageId, blockId, button }: { pageId?: number; bloc
         setState("sending");
         setError(null);
         try {
-            await api("/enquiry", { method: "POST", body: { ...form, pageId, blockId } });
+            // where they came from, the same way a page view is counted, so analytics can say
+            // which source brings enquiries and not just visits
+            const utmSource = new URLSearchParams(window.location.search).get("utm_source") ?? undefined;
+            await api("/enquiry", { method: "POST", body: { ...form, pageId, blockId, serviceId, referrer: document.referrer || undefined, utmSource } });
             setState("sent");
         } catch (failure) {
             setError((failure as Error).message);
@@ -44,6 +57,12 @@ export function ContactForm({ pageId, blockId, button }: { pageId?: number; bloc
                 <input name="name" required maxLength={100} autoComplete="name" placeholder="Your name" aria-label="Your name" className={field} />
                 <input name="email" type="email" required maxLength={254} autoComplete="email" placeholder="Your email" aria-label="Your email" className={field} />
             </div>
+            {askDate && (
+                <label className="flex flex-col gap-1 text-xs font-semibold text-(--page-muted)">
+                    When? (optional)
+                    <input name="wantedOn" type="date" min={new Date().toISOString().slice(0, 10)} className={field} />
+                </label>
+            )}
             <textarea name="message" required minLength={2} maxLength={3000} rows={4} placeholder="What would you like to make together?" aria-label="Your message" className={`${field} resize-y`} />
             {/* the trap: hidden from people and screen readers, so whatever fills it in is a robot */}
             <input name="website" tabIndex={-1} autoComplete="off" aria-hidden className="absolute -left-[9999px] h-0 w-0 opacity-0" />

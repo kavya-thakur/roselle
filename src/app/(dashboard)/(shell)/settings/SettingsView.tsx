@@ -16,6 +16,7 @@ interface SettingsViewProps {
     email: string;
     username: string;
     plan: Plan;
+    weeklyEmail: boolean;
     emailVerified: boolean;
     // just back from the email's link: did it work?
     justVerified: boolean | null;
@@ -24,7 +25,7 @@ interface SettingsViewProps {
 const section = "mt-6 rounded-2xl border border-line bg-paper p-6 shadow-soft";
 const notice = (ok: boolean) => `rounded-xl px-3.5 py-2.5 text-sm ${ok ? "bg-success/10 text-success" : "bg-blush text-pink"}`;
 
-export function SettingsView({ email, username, plan, emailVerified, justVerified }: SettingsViewProps) {
+export function SettingsView({ email, username, plan, weeklyEmail, emailVerified, justVerified }: SettingsViewProps) {
     const router = useRouter();
     const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
@@ -82,6 +83,7 @@ export function SettingsView({ email, username, plan, emailVerified, justVerifie
                 </section>
 
                 <AccountSection email={email} plan={plan} emailVerified={emailVerified} justVerified={justVerified} />
+                <EmailsSection weeklyEmail={weeklyEmail} />
                 <PasswordSection />
                 <DeleteSection />
             </div>
@@ -90,7 +92,7 @@ export function SettingsView({ email, username, plan, emailVerified, justVerifie
 }
 
 // Who's signed in, whether that address is confirmed, and which plan they're on
-function AccountSection({ email, plan, emailVerified, justVerified }: Omit<SettingsViewProps, "username">) {
+function AccountSection({ email, plan, emailVerified, justVerified }: Omit<SettingsViewProps, "username" | "weeklyEmail">) {
     const [sent, setSent] = useState<{ ok: boolean; message: string } | null>(null);
     const [sending, setSending] = useState(false);
 
@@ -242,6 +244,47 @@ function DeleteSection() {
                     Delete my account
                 </Button>
             )}
+        </section>
+    );
+}
+
+// The emails Roselle sends on its own. Enquiries, reviews and account emails always come.
+function EmailsSection({ weeklyEmail }: { weeklyEmail: boolean }) {
+    const [on, setOn] = useState(weeklyEmail);
+    const [error, setError] = useState<string | null>(null);
+
+    async function toggle() {
+        const next = !on;
+        setOn(next);
+        setError(null);
+        try {
+            await api("/settings/business", { method: "PUT", body: { weeklyEmail: next } });
+        } catch (failure) {
+            setOn(!next);
+            setError((failure as Error).message);
+        }
+    }
+
+    return (
+        <section className={section}>
+            <h2 className="text-lg font-semibold">Emails</h2>
+            <div className="mt-4 flex items-start justify-between gap-6">
+                <div>
+                    <p className="text-[15px] font-medium">Your week, every Monday</p>
+                    <p className="mt-0.5 text-sm text-muted">Visitors, enquiries, bookings and what needs doing, in one short email. Skipped on quiet weeks.</p>
+                </div>
+                <button
+                    role="switch"
+                    aria-checked={on}
+                    aria-label="Weekly email"
+                    onClick={toggle}
+                    className={`relative mt-1 h-6 w-10 shrink-0 rounded-full transition-colors ${on ? "bg-forest" : "bg-line-strong"}`}
+                >
+                    <span className={`absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-transform ${on ? "translate-x-4" : ""}`} />
+                </button>
+            </div>
+            <p className="mt-3 text-sm text-muted">New enquiries, a reminder when someone has waited a day, and new reviews always reach you.</p>
+            {error && <p className="mt-2 text-sm text-danger">{error}</p>}
         </section>
     );
 }

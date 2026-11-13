@@ -7,19 +7,52 @@ import { InboxView } from "./InboxView";
 
 export const metadata: Metadata = { title: "Inbox" };
 
-// Messages from the "Work with me" form, newest first. Opening the inbox marks them read;
-// the ones that were new still show as new this once.
+// Enquiries from the page, newest first, and where each one stands. Opening the inbox marks them
+// read (the sidebar's count); the ones that were new still say so this once.
 export default async function InboxPage() {
     const user = await getCurrentUser();
     if (!user) redirect("/login");
 
-    const messages = await prisma.enquiry.findMany({
+    const enquiries = await prisma.enquiry.findMany({
         where: { pageId: user.page.id },
         orderBy: { createdAt: "desc" },
-        take: 300,
-        select: { id: true, name: true, email: true, message: true, createdAt: true, readAt: true },
+        // ponytail: the newest 500, all filtered in the browser; page through them on the server past that
+        take: 500,
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            message: true,
+            service: true,
+            wantedOn: true,
+            source: true,
+            status: true,
+            amount: true,
+            bookedAt: true,
+            createdAt: true,
+            readAt: true,
+            reviewRequestedAt: true,
+            paymentRequestedAt: true,
+            paymentRequestedAmount: true,
+            review: { select: { id: true } },
+        },
     });
     await prisma.enquiry.updateMany({ where: { pageId: user.page.id, readAt: null }, data: { readAt: new Date() } });
 
-    return <InboxView messages={messages.map((message) => ({ ...message, createdAt: message.createdAt.toISOString(), unread: !message.readAt }))} />;
+    return (
+        <InboxView
+            currency={user.currency}
+            monthlyGoal={user.monthlyGoal}
+            paymentLink={user.paymentLink ?? ""}
+            enquiries={enquiries.map(({ readAt, createdAt, bookedAt, reviewRequestedAt, paymentRequestedAt, review, ...enquiry }) => ({
+                ...enquiry,
+                unread: !readAt,
+                createdAt: createdAt.toISOString(),
+                bookedAt: bookedAt?.toISOString() ?? null,
+                reviewRequestedAt: reviewRequestedAt?.toISOString() ?? null,
+                reviewed: !!review,
+                paymentRequestedAt: paymentRequestedAt?.toISOString() ?? null,
+            }))}
+        />
+    );
 }

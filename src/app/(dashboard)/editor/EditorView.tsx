@@ -21,6 +21,7 @@ import {
 
 import { Button } from "@/components/Button";
 import { PageRenderer } from "@/components/PageRenderer";
+import type { PublicReview } from "@/lib/reviews";
 import { api } from "@/lib/api/client";
 import type { PageDoc } from "@/lib/validations/page";
 import { CopyLink } from "../CopyLink";
@@ -45,6 +46,7 @@ interface EditorViewProps {
     initialPublished: PageDoc | null;
     initialPublishedAt: string | null;
     clicks: Record<string, number>;
+    reviews: PublicReview[];
 }
 
 // The whole editor, laid out like a workbench: the sections on a rail at the left, the one
@@ -53,7 +55,7 @@ interface EditorViewProps {
 // takes the whole width, the sections sit in a bar at the bottom, and Preview opens the page
 // full screen.
 // Every change is saved as a draft a moment later; Publish makes the draft what visitors see.
-export function EditorView({ username, initialDraft, initialPublished, initialPublishedAt, clicks }: EditorViewProps) {
+export function EditorView({ username, initialDraft, initialPublished, initialPublishedAt, clicks, reviews }: EditorViewProps) {
     const router = useRouter();
     const [page, setPage] = useState(initialDraft);
     const [published, setPublished] = useState(initialPublished);
@@ -218,7 +220,7 @@ export function EditorView({ username, initialDraft, initialPublished, initialPu
                             }`}
                         >
                             <div className="h-full overflow-y-auto overscroll-contain [scrollbar-width:none]">
-                                <PageRenderer page={page} mode="preview" />
+                                <PageRenderer page={page} mode="preview" reviews={reviews} />
                             </div>
                         </div>
 
@@ -273,7 +275,7 @@ export function EditorView({ username, initialDraft, initialPublished, initialPu
                     </div>
                     <div className="mx-3 mb-3 min-h-0 flex-1 overflow-hidden rounded-[1.75rem] border border-line bg-paper shadow-lifted">
                         <div className="h-full overflow-y-auto overscroll-contain">
-                            <PageRenderer page={page} mode="preview" />
+                            <PageRenderer page={page} mode="preview" reviews={reviews} />
                         </div>
                     </div>
                 </div>

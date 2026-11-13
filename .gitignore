@@ -44,3 +44,12 @@ next-env.d.ts
 
 # Playwright screenshots and logs (tooling, not part of the app)
 /.playwright-mcp/
+
+# the settings template has no secrets, so it's shared (the real .env never is)
+!.env.example
+
+# the Prisma client, rebuilt from prisma/schema.prisma on every install (npm postinstall)
+/src/generated
+
+# private notes, kept on this machine only
+/docs

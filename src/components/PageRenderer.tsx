@@ -1,15 +1,17 @@
 /* eslint-disable @next/next/no-img-element -- creators' images come from any host, next/image would need each one listed */
 import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
-import { IconArrowRight, IconArrowUpRight, IconClock, IconCoffee, IconCurrencyRupee, IconEyeOff, IconHeart, IconMapPin } from "@tabler/icons-react";
+import { IconArrowRight, IconArrowUpRight, IconStarFilled, IconClock, IconCoffee, IconCurrencyRupee, IconEyeOff, IconHeart, IconMapPin } from "@tabler/icons-react";
 
 import { FONTS } from "@/lib/pages/theme";
 import { pageBackground } from "@/lib/pages/patterns";
 import { hasCaseStudy, isLive, mapEmbed, mapLink, musicEmbed, safeHref, targetOf, TIP_LABELS, videoEmbed } from "@/lib/pages/links";
 import type { Block, PageDoc, Theme } from "@/lib/validations/page";
+import type { PublicReview } from "@/lib/reviews";
 import { LinkIcon, SocialIcon } from "./SocialIcon";
 import { QrCode } from "./QrCode";
 import { ContactForm } from "./ContactForm";
+import { ServicesBlock } from "./ServicesBlock";
 
 interface PageRendererProps {
     page: PageDoc;
@@ -20,16 +22,19 @@ interface PageRendererProps {
     pageId?: number;
     // for the addresses of project case studies (/<username>/work/<id>)
     username?: string;
+    // the approved reviews, for a Reviews block (they're stored apart from the page)
+    reviews?: PublicReview[];
 }
 
 // Draws a creator page from its JSON document. The same component is the public page, the
 // editor's live preview and the landing page's examples, so they can never look different.
 // It sizes itself to its box (container queries), not the window, which is what lets the
 // editor show a phone and a desktop preview side by side on one screen.
-export function PageRenderer({ page, mode = "live", pageId, username }: PageRendererProps) {
+export function PageRenderer({ page, mode = "live", pageId, username, reviews = [] }: PageRendererProps) {
     const { profile, theme } = page;
     // visitors never see hidden or off-schedule blocks, nor one left unfinished (a button that goes nowhere)
-    const blocks = mode === "live" ? page.blocks.filter((block) => isLive(block) && !isUnfinished(block)) : page.blocks;
+    // (a Reviews block with nothing approved yet is unfinished too)
+    const blocks = mode === "live" ? page.blocks.filter((block) => isLive(block) && !isUnfinished(block) && !(block.type === "reviews" && reviews.length === 0)) : page.blocks;
     const header = theme.layout.header;
     // a poster spans the whole width above everything, so the two-column layout doesn't apply
     const left = theme.layout.align === "left" && header !== "poster";
@@ -76,7 +81,7 @@ export function PageRenderer({ page, mode = "live", pageId, username }: PageRend
 
                     {blocks.map((block, i) => (
                         <BlockFrame key={block.id} block={block} order={Math.min(i + 1, 12)} preview={mode === "preview"}>
-                            <BlockView block={block} linkOf={linkOf} pageId={mode === "live" ? pageId : undefined} />
+                            <BlockView block={block} linkOf={linkOf} pageId={mode === "live" ? pageId : undefined} reviews={reviews} />
                         </BlockFrame>
                     ))}
                 </main>
@@ -201,10 +206,18 @@ function isUnfinished(block: Block) {
     if (block.type === "music") return !musicEmbed(block.url);
     if (block.type === "video") return !videoEmbed(block.url);
     if (block.type === "map") return !block.address.trim();
+    if (block.type === "services") return !block.items.some((item) => item.name.trim());
     return false;
 }
 
-function BlockView({ block, linkOf, pageId }: { block: Block; linkOf: (block: Block) => string | undefined; pageId?: number }) {
+interface BlockViewProps {
+    block: Block;
+    linkOf: (block: Block) => string | undefined;
+    pageId?: number;
+    reviews: PublicReview[];
+}
+
+function BlockView({ block, linkOf, pageId, reviews }: BlockViewProps) {
     switch (block.type) {
         case "link": {
             const href = linkOf(block);
@@ -374,6 +387,12 @@ function BlockView({ block, linkOf, pageId }: { block: Block; linkOf: (block: Bl
             );
         }
 
+        case "services":
+            return block.items.some((item) => item.name.trim()) ? <ServicesBlock block={block} pageId={pageId} /> : <Placeholder text="Add the services you offer" />;
+
+        case "reviews":
+            return reviews.length ? <Reviews title={block.title} reviews={reviews} /> : <Placeholder text="Reviews you approve will appear here" />;
+
         case "contact":
             return (
                 <div className="page-card p-5 @md:p-6">
@@ -447,6 +466,39 @@ function BlockView({ block, linkOf, pageId }: { block: Block; linkOf: (block: Bl
             );
         }
     }
+}
+
+// What clients said: the average up top (real numbers, every review is from a paying client),
+// then each review with its stars, words and who wrote it
+function Reviews({ title, reviews }: { title: string; reviews: PublicReview[] }) {
+    const average = reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length;
+
+    return (
+        <div>
+            <div className="mb-3 flex items-baseline justify-between gap-3">
+                {title && <h3 className="text-xs font-semibold tracking-[0.22em] text-(--page-muted) uppercase">{title}</h3>}
+                <p className="ml-auto flex items-center gap-1 text-sm font-semibold tabular-nums" aria-label={`Rated ${average.toFixed(1)} out of 5 from ${reviews.length} reviews`}>
+                    <IconStarFilled size={14} aria-hidden /> {average.toFixed(1)} <span className="font-normal text-(--page-muted)">· {reviews.length}</span>
+                </p>
+            </div>
+            <ul className="flex flex-col gap-3">
+                {reviews.map((review) => (
+                    <li key={review.id} className="page-card p-5">
+                        <p className="flex gap-0.5" aria-label={`${review.rating} out of 5`}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <IconStarFilled key={star} size={14} aria-hidden className={star <= review.rating ? "" : "opacity-20"} />
+                            ))}
+                        </p>
+                        <blockquote className="mt-3 text-[15px] leading-relaxed whitespace-pre-line text-pretty">{review.text}</blockquote>
+                        <p className="mt-3 text-sm font-semibold">
+                            {review.name}
+                            {review.service && <span className="font-normal text-(--page-muted)"> · {review.service}</span>}
+                        </p>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
 }
 
 // A picture that opens full screen (src/components/Lightbox.tsx), with the others in its group

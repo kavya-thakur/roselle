@@ -211,6 +211,9 @@ export function IconPicker({ value, onChange }: { value: LinkIconName | ""; onCh
 
 const ACCEPT = "image/jpeg,image/png,image/webp,image/gif,image/avif";
 
+// The list with item `i` one place earlier: how short lists (photos, services) are reordered
+export const moveUp = <T,>(list: T[], i: number) => list.map((_, j) => list[j === i - 1 ? i : j === i ? i - 1 : j]);
+
 // A list of pictures (a gallery, a case study): add many at once by uploading several files,
 // or paste addresses one by one; each has a description for screen readers and the full-screen view
 export function ImageListField({ id, images, max, onChange }: { id: string; images: { src: string; alt: string }[]; max: number; onChange: (images: { src: string; alt: string }[]) => void }) {
@@ -253,7 +256,7 @@ export function ImageListField({ id, images, max, onChange }: { id: string; imag
                         </button>
                         {/* move it one place earlier: the simplest way to reorder a short list */}
                         {i > 0 && (
-                            <button type="button" onClick={() => onChange(images.map((_, j) => images[j === i - 1 ? i : j === i ? i - 1 : j]))} aria-label="Move image up" className="flex size-9 shrink-0 items-center justify-center rounded-lg text-faint hover:bg-paper hover:text-ink">
+                            <button type="button" onClick={() => onChange(moveUp(images, i))} aria-label="Move image up" className="flex size-9 shrink-0 items-center justify-center rounded-lg text-faint hover:bg-paper hover:text-ink">
                                 <IconArrowUp size={15} />
                             </button>
                         )}

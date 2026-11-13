@@ -4,13 +4,26 @@ A link-in-bio platform for people with taste: an editorial page for your work, l
 a live editor to compose it, and quiet, honest analytics.
 
 - **Marketing site** at `/`
-- **Editor** at `/editor`: blocks (links with icons, headings, text, images, video, galleries,
-  projects, music players, maps, tips & payments),
+- **Editor** at `/editor`: blocks (links with icons, headings, text, images, video, galleries
+  in grid / masonry / carousel, projects with case studies, music players, maps, tips & payments,
+  a "Work with me" contact form),
   drag to reorder, hide or schedule any block, templates, colours, fonts, button styles,
   layout, phone and desktop preview, autosave, Publish
 - **Public pages** at `/<username>`, with SEO fields and a generated share image
 - **Analytics** at `/analytics`: views, unique visitors, clicks, click-through rate, traffic
   sources, devices, per-link clicks, over 7 / 30 / 90 days
+- **For photographers and designers**: every photo opens full screen (swipe or arrow keys); a
+  project with a story or pictures gets its own case-study page at `/<username>/work/<id>`;
+  uploads are resized in the browser (a 20 MB phone photo arrives as ~0.5 MB WebP)
+- **Services** with an Enquire button on each, opening the enquiry form with that service chosen
+- **Inbox** at `/inbox`: every enquiry (also emailed, Reply goes to the sender), moved along
+  New → Replied → Booked → Paid with amounts; "booked this month" and "waiting to be paid" at the top
+- **Analytics funnel**: visitors → enquiries → bookings → money, which sources bring paid work,
+  how each service sells, and average reply time
+- **Grows the business on its own**: a morning email when an enquiry has waited a day, a Monday
+  summary of the week, verified client reviews (asked for from a paid job, approved before they
+  show), payment requests to booked clients with the creator's own payment link or UPI ID, and a
+  monthly goal in the inbox. One daily job (`vercel.json` → `/api/cron/daily`) runs the emails.
 - **QR code** of your page (PNG or SVG) from the address bar at the top of the dashboard
 - **Accounts**: email confirmation, forgot / reset password, change password, delete account
 
@@ -22,7 +35,8 @@ cp .env.example .env            # DATABASE_URL, APP_URL, VISITOR_SALT
 npm install                     # also generates the Prisma client
 npx prisma migrate deploy
 npm run dev                     # http://localhost:3000
-npm test                        # page rules: link safety, schedules, schema
+npm test                        # all 87 tests (needs Postgres running; makes its own roselle_test database)
+npm run test:unit               # just the rules and calculations, no database, under a second
 ```
 
 ## Deploying for free
@@ -40,7 +54,7 @@ Everything below has a free plan that needs no card. Total cost: $0.
 2. **Brevo**: sign up, verify one sender address (Senders & IPs → Senders), create an API key (SMTP & API → API keys).
 3. **Vercel**: import the repository and set the environment variables from `.env.example`:
    `DATABASE_URL` (Neon pooled), `DIRECT_URL` (Neon direct), `APP_URL` (`https://your-project.vercel.app`),
-   `VISITOR_SALT` (`openssl rand -hex 32`), `BREVO_API_KEY`, `MAIL_FROM`, `ADMIN_EMAILS` (your
+   `VISITOR_SALT` and `CRON_SECRET` (each `openssl rand -hex 32`), `BREVO_API_KEY`, `MAIL_FROM`, `ADMIN_EMAILS` (your
    own sign-in email), and `CONTACT_EMAIL` if questions should go somewhere other than `MAIL_FROM`.
 4. Deploy. `vercel-build` applies the database migrations, then builds.
 

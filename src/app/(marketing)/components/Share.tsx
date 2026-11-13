@@ -60,8 +60,8 @@ export function Share() {
             </div>
 
             {/* ---------- the stage: a 1000 × 600 box, lines underneath, pills and the card on top ---------- */}
-            <div data-share-stage className="relative mx-auto mt-16 aspect-[10/6] w-full max-w-[1100px] max-md:aspect-auto max-md:px-5">
-                <svg aria-hidden viewBox="0 0 1000 600" preserveAspectRatio="none" className="absolute inset-0 hidden size-full md:block">
+            <div data-share-stage className="relative mx-auto mt-16 aspect-[10/6] w-full max-w-[1100px] max-lg:aspect-auto max-lg:px-5">
+                <svg aria-hidden viewBox="0 0 1000 600" preserveAspectRatio="none" className="absolute inset-0 hidden size-full lg:block">
                     {PLACES.map((place) => {
                         // a soft curve from the pill to the card, bending away from the middle
                         const bend = (place.y - CENTRE.y) * 0.6;
@@ -80,18 +80,18 @@ export function Share() {
                     })}
                 </svg>
 
-                {/* the places: on the stage from tablets up, a wrapped row on phones */}
-                <ul className="flex flex-wrap justify-center gap-2.5 md:contents">
+                {/* the places: round the card on the stage from laptops up, a wrapped row on smaller screens */}
+                <ul className="flex flex-wrap justify-center gap-2.5 lg:contents">
                     {PLACES.map(({ label, icon: Icon, x, y }) => (
                         <li
                             key={label}
                             data-share-place
-                            // left/top only count once the pill is absolutely placed (tablets up);
-                            // on phones it sits in the wrapped row and they're ignored
-                            className="md:absolute md:-translate-x-1/2 md:-translate-y-1/2"
+                            // left/top only count once the pill is absolutely placed (laptops up);
+                            // smaller screens put it in the wrapped row and they're ignored
+                            className="lg:absolute lg:-translate-x-1/2 lg:-translate-y-1/2"
                             style={{ left: `${x / 10}%`, top: `${y / 6}%` }}
                         >
-                            <span className="flex items-center gap-2 rounded-full bg-paper py-2.5 pr-4 pl-3 text-[14px] font-bold whitespace-nowrap shadow-soft md:text-[15px]">
+                            <span className="flex items-center gap-2 rounded-full bg-paper py-2.5 pr-4 pl-3 text-[14px] font-bold whitespace-nowrap shadow-soft lg:text-[15px]">
                                 <Icon size={19} className="text-pink" />
                                 {label}
                             </span>
@@ -100,7 +100,12 @@ export function Share() {
                 </ul>
 
                 {/* the card in the middle: the page's address and its QR code, as if printed */}
-                <div className="relative mt-12 flex justify-center md:absolute md:top-1/2 md:left-1/2 md:mt-0 md:-translate-x-1/2 md:-translate-y-1/2">
+                {/* smaller screens: one line drawing itself down from the row of places to the card */}
+                <svg aria-hidden viewBox="0 0 40 120" className="mx-auto mt-3 block h-24 w-8 lg:hidden">
+                    <path data-share-line d="M20 0 C 38 30, 2 60, 20 90 S 20 110, 20 120" fill="none" stroke="#e0408f" strokeWidth="6" strokeLinecap="round" />
+                </svg>
+
+                <div className="relative mt-3 flex justify-center lg:absolute lg:top-1/2 lg:left-1/2 lg:mt-0 lg:-translate-x-1/2 lg:-translate-y-1/2">
                     <div data-share-card>
                         <div data-share-float className="w-[250px] rotate-[-3deg] rounded-[1.75rem] bg-forest p-5 text-left text-shell shadow-lifted">
                             <div className="flex items-center justify-between">

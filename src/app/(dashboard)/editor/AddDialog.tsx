@@ -15,6 +15,8 @@ import {
     IconPhoto,
     IconPlayerPlay,
     IconSearch,
+    IconStar,
+    IconTag,
     IconX,
 } from "@tabler/icons-react";
 
@@ -33,7 +35,9 @@ export const BLOCK_ICONS: Record<BlockType, typeof IconLink> = {
     music: IconMusic,
     map: IconMapPin,
     tip: IconHeartHandshake,
+    services: IconTag,
     contact: IconMessageCircle,
+    reviews: IconStar,
 };
 
 // Ready-made links for the places people link to most: pick one, then just add your handle

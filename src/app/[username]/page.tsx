@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { PageRenderer } from "@/components/PageRenderer";
 import { Lightbox } from "@/components/Lightbox";
 import { getPublishedPage } from "@/lib/pages/publish";
+import { getApprovedReviews } from "@/lib/reviews";
 import { TrackView } from "./TrackView";
 
 // Rendered once and kept, so a visit is just a file served. Kept for a minute at most, which is
@@ -36,9 +37,11 @@ export default async function CreatorPage({ params }: PageProps<"/[username]">) 
         notFound();
     }
 
+    const reviews = page.doc.blocks.some((block) => block.type === "reviews") ? await getApprovedReviews(page.id) : [];
+
     return (
         <div className="flex min-h-dvh flex-1 flex-col">
-            <PageRenderer page={page.doc} pageId={page.id} username={page.username} />
+            <PageRenderer page={page.doc} pageId={page.id} username={page.username} reviews={reviews} />
             <TrackView pageId={page.id} />
             <Lightbox />
         </div>

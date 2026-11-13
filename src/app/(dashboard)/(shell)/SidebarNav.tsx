@@ -2,19 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconChartBar, IconInbox, IconLayoutGrid, IconSettings, IconShieldCheck } from "@tabler/icons-react";
+import { IconChartBar, IconInbox, IconLayoutGrid, IconSettings, IconShieldCheck, IconStar } from "@tabler/icons-react";
 
 const PAGES = [
     { href: "/editor", label: "My page", icon: IconLayoutGrid },
     { href: "/analytics", label: "Analytics", icon: IconChartBar },
     { href: "/inbox", label: "Inbox", icon: IconInbox },
+    { href: "/reviews", label: "Reviews", icon: IconStar },
     { href: "/settings", label: "Settings", icon: IconSettings },
 ];
 
 // Client component only because it needs the current address to show which page you're on.
 // Admins (ADMIN_EMAILS) also get the reports screen.
-// `unread`: new messages, shown as a count beside Inbox.
-export function SidebarNav({ admin = false, unread = 0 }: { admin?: boolean; unread?: number }) {
+// `counts`: things waiting on a page, by its address (new enquiries, reviews to approve), shown
+// as a number beside it.
+export function SidebarNav({ admin = false, counts = {} }: { admin?: boolean; counts?: Record<string, number> }) {
     const pathname = usePathname();
     const pages = admin ? [...PAGES, { href: "/admin", label: "Admin", icon: IconShieldCheck }] : PAGES;
 
@@ -33,9 +35,10 @@ export function SidebarNav({ admin = false, unread = 0 }: { admin?: boolean; unr
                     >
                         <Icon size={19} stroke={active ? 2.2 : 1.8} />
                         {label}
-                        {href === "/inbox" && unread > 0 && (
-                            <span className="ml-auto rounded-full bg-pink px-1.5 py-px text-[11px] font-bold text-white" aria-label={`${unread} new`}>
-                                {unread}
+                        {/* not on the page itself: opening it is how they get dealt with */}
+                        {(counts[href] ?? 0) > 0 && !active && (
+                            <span className="ml-auto rounded-full bg-pink px-1.5 py-px text-[11px] font-bold text-white" aria-label={`${counts[href]} waiting`}>
+                                {counts[href]}
                             </span>
                         )}
                     </Link>

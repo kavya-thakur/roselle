@@ -9,7 +9,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test:unit": "vitest run --project unit",
+    "test:api": "vitest run --project api"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

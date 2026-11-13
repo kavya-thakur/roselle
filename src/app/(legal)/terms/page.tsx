@@ -38,7 +38,8 @@ export default function TermsPage() {
                 <li>show graphic violence, or encourage self-harm or terrorism;</li>
                 <li>sell or promote illegal goods or services;</li>
                 <li>use someone else&apos;s work, brand or trademark without the right to;</li>
-                <li>be spam, or try to break, overload or get around Roselle.</li>
+                <li>be spam, or try to break, overload or get around Roselle;</li>
+                <li>show reviews that aren&apos;t real, or edit what a client wrote (you can approve, hide or delete a review, not change it).</li>
             </ul>
 
             <h2>Reports and taking pages down</h2>
@@ -52,6 +53,12 @@ export default function TermsPage() {
             <p>
                 Tip and payment buttons send visitors to the creator&apos;s own PayPal, Ko-fi, UPI app or similar. The payment is between the visitor and the creator, under
                 that service&apos;s terms. Roselle isn&apos;t part of it, doesn&apos;t hold the money and can&apos;t give refunds.
+            </p>
+
+            <h2>Emails we send for you</h2>
+            <p>
+                When you ask a client for a review or a payment, we email them on your behalf, with replies going to you. Only send these to people you&apos;ve
+                actually worked with.
             </p>
 
             <h2>Plans and prices</h2>

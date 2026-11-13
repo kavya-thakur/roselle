@@ -160,7 +160,7 @@ export function Footer({ pages }: { pages: PageDoc[] }) {
                 >
                     <label className="flex min-w-0 flex-1 items-center pl-5 text-[clamp(1rem,2.2vw,1.35rem)]">
                         <span className="sr-only">Your page address:</span>
-                        <span className="shrink-0 font-medium text-ink/45">{SITE_HOST}/</span>
+                        <span className="shrink-0 font-medium text-ink/45 max-sm:text-[14px]">{SITE_HOST}/</span>
                         <input
                             ref={input}
                             name="username"
@@ -173,9 +173,9 @@ export function Footer({ pages }: { pages: PageDoc[] }) {
                         />
                     </label>
                     {/* 19px bold: large text, so white on pink is readable */}
-                    <button type="submit" className="group flex h-14 shrink-0 items-center gap-2 rounded-full bg-pink px-6 text-[19px] font-bold text-white transition-colors duration-300 hover:bg-pink-hover">
+                    <button type="submit" className="group flex h-14 shrink-0 items-center gap-2 rounded-full bg-pink px-5 text-[19px] sm:px-6 font-bold text-white transition-colors duration-300 hover:bg-pink-hover">
                         Claim
-                        <IconArrowRight size={20} className="transition-transform duration-300 group-hover:translate-x-1" />
+                        <IconArrowRight size={20} className="transition-transform duration-300 group-hover:translate-x-1 max-[400px]:hidden" />
                     </button>
                 </form>
                 <p className="relative mt-5 text-[15px] text-white/60">Free forever · No card needed · Live in a minute</p>

@@ -15,11 +15,13 @@ export default function PrivacyPage() {
 
             <h2>If you have an account</h2>
             <ul>
-                <li><strong>Your email address</strong>, to sign you in and to send you account emails (confirming your address, resetting your password, telling you if your page is taken down). We don&apos;t send marketing emails.</li>
+                <li><strong>Your email address</strong>, to sign you in and to send you account emails (confirming your address, resetting your password, new enquiries and reviews, a reminder when an enquiry has waited a day, telling you if your page
+                    is taken down) and, unless you turn it off in Settings, a short summary of your week on Mondays. We don&apos;t send marketing emails.</li>
                 <li><strong>Your password</strong>, stored only as a scrambled one-way hash. Nobody at Roselle can read it.</li>
                 <li><strong>Your username and your page</strong>: your name, bio, photos, links, blocks and design. What you publish is public: anyone with the link can see it, and search engines may list it.</li>
                 <li><strong>Images you upload</strong>, kept in our database. Once on your page, anyone can view them.</li>
                 <li><strong>Your plan</strong> (Free or Pro) and when you confirmed your email.</li>
+                <li><strong>Messages visitors send you</strong> through your contact form or services, and what you note about them (booked, paid, the amount), until you delete them.</li>
             </ul>
 
             <h2>If you visit someone&apos;s page</h2>
@@ -34,6 +36,20 @@ export default function PrivacyPage() {
                 </li>
             </ul>
             <p>Only the page&apos;s owner sees these numbers, and only added up. Search engines and link-preview robots aren&apos;t counted.</p>
+
+            <h2>If you send a creator a message</h2>
+            <p>
+                A page can have a contact form or an Enquire button on a service. What you send through it (your name, email address, message, the service and
+                date you asked about, and the website you came from, like instagram.com) is kept in that creator&apos;s inbox on Roselle and emailed to them, so they
+                can reply to you directly and keep track of the work. It stays until they delete it or close their account. We don&apos;t use it for anything else.
+            </p>
+
+            <h2>If a creator asks you for a review or a payment</h2>
+            <p>
+                After work is done, a creator can have us email you a link to review it, or a request to pay them (with their own payment page or UPI ID). We
+                send it on their behalf and replies go to them. If you leave a review, your name, rating and words are shown on their page once they approve it,
+                along with the service. The payment itself happens with the payment service, never through Roselle.
+            </p>
 
             <h2>Cookies</h2>
             <p>
@@ -69,8 +85,8 @@ export default function PrivacyPage() {
 
             <h2>How long we keep it</h2>
             <p>
-                Everything about your account stays until you delete it. Deleting your account (Settings → Delete account) removes your account, your page, your images and
-                its visit counts straight away. Copies can remain in our hosting provider&apos;s backups for a short time before they&apos;re overwritten.
+                Everything about your account stays until you delete it. Deleting your account (Settings → Delete account) removes your account, your page, your images,
+                its visit counts and your messages straight away. Copies can remain in our hosting provider&apos;s backups for a short time before they&apos;re overwritten.
             </p>
 
             <h2>Your rights</h2>

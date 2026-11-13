@@ -13,7 +13,9 @@ export const BLOCK_TYPES: { type: BlockType; label: string; hint: string }[] = [
     { type: "music", label: "Music", hint: "Spotify, Apple Music or SoundCloud" },
     { type: "map", label: "Map", hint: "Where to find you" },
     { type: "tip", label: "Tips", hint: "PayPal, Ko-fi, UPI and more" },
+    { type: "services", label: "Services", hint: "What you offer and what it costs" },
     { type: "contact", label: "Contact form", hint: "Let people ask to work with you" },
+    { type: "reviews", label: "Reviews", hint: "What clients said, once you approve it" },
 ];
 
 // What a new block starts with, so it shows something in the preview straight away
@@ -28,6 +30,14 @@ const STARTERS: Record<BlockType, object> = {
     music: {},
     map: {},
     tip: { title: "Buy me a coffee" },
+    services: {
+        title: "Services",
+        items: [
+            { id: "s1", name: "Portrait session", price: "from $300", description: "One hour, one location, 20 edited photos." },
+            { id: "s2", name: "Brand shoot", price: "from $900", description: "Half a day with your products, team and space. 60 edited photos." },
+        ],
+    },
+    reviews: { title: "Kind words" },
     contact: { title: "Work with me", text: "Commissions, collaborations or just hello. I usually reply within two days.", button: "Send message" },
 };
 

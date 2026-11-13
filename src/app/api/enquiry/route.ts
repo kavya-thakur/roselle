@@ -2,19 +2,23 @@ import { after, NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { handleRouteError, parseBody } from "@/lib/api/http";
 import { tooManyAttempts, visitorOf } from "@/lib/api/rateLimit";
+import { sourceOf } from "@/lib/analytics/track";
 import { sendEmail } from "@/lib/email/send";
 import { isLive } from "@/lib/pages/links";
 import { SITE_URL } from "@/lib/site";
 import { enquirySchema } from "@/lib/validations/enquiry";
 import { pageSchema } from "@/lib/validations/page";
 
-// A visitor's message from a "Work with me" block: kept in the creator's inbox and emailed to
-// them, with Reply going straight back to the visitor
+// A visitor's message from a "Work with me" or Services block: kept in the creator's inbox, where
+// it can become a booking, and emailed to them with Reply going straight back to the visitor
+//
+// Everything about the block is read from the published page, never trusted from the browser:
+// that the block exists and is live, and what the chosen service is called.
 export async function POST(req: NextRequest) {
     try {
         const parsed = await parseBody(req, enquirySchema);
         if (!parsed.success) return parsed.response;
-        const { pageId, blockId, name, email, message, website } = parsed.data;
+        const { pageId, blockId, serviceId, name, email, message, wantedOn, referrer, utmSource, website } = parsed.data;
 
         // the hidden trap field was filled in: a robot. Answer as if it worked, so it doesn't learn.
         if (website) return NextResponse.json({ ok: true }, { status: 201 });
@@ -23,22 +27,28 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ ok: false, message: "You've sent a few messages already. Please try again in an hour." }, { status: 429 });
         }
 
-        // only a live contact block on a live page takes messages
+        // only a live contact or services block on a live page takes messages
         const page = await prisma.page.findUnique({ where: { id: pageId }, select: { username: true, published: true, suspendedAt: true, user: { select: { email: true } } } });
         const published = pageSchema.safeParse(page?.published);
         const block = published.success ? published.data.blocks.find((candidate) => candidate.id === blockId) : undefined;
-        if (!page || page.suspendedAt || block?.type !== "contact" || !isLive(block)) {
+        const service = block?.type === "services" ? block.items.find((item) => item.id === serviceId) : undefined;
+        const takesMessages = block?.type === "contact" || (block?.type === "services" && service);
+        if (!page || page.suspendedAt || !block || !takesMessages || !isLive(block)) {
             return NextResponse.json({ ok: false, message: "This form isn't taking messages any more" }, { status: 404 });
         }
 
-        await prisma.enquiry.create({ data: { pageId, name, email, message } });
+        await prisma.enquiry.create({
+            data: { pageId, name, email, message, service: service?.name || null, wantedOn: wantedOn || null, source: sourceOf(referrer, utmSource) },
+        });
+
+        const about = [service && `About: ${service.name}${service.price ? ` (${service.price})` : ""}`, wantedOn && `For: ${wantedOn}`].filter(Boolean).join("\n");
 
         after(() =>
             sendEmail({
                 to: page.user.email,
                 replyTo: { email, name },
-                subject: `${name} sent you a message on Roselle`,
-                text: `${name} (${email}) wrote to you through ${SITE_URL}/${page.username}:\n\n${message}\n\nReply to this email to answer them. All your messages: ${SITE_URL}/inbox`,
+                subject: service ? `${name} asked about ${service.name}` : `${name} sent you a message on Roselle`,
+                text: `${name} (${email}) wrote to you through ${SITE_URL}/${page.username}:\n\n${about ? `${about}\n\n` : ""}${message}\n\nReply to this email to answer them. Track it in your inbox: ${SITE_URL}/inbox`,
             }).catch((error) => console.error("Enquiry email error:", error)),
         );
 

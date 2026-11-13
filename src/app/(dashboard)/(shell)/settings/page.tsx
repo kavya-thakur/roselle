@@ -23,6 +23,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             email={user.email}
             username={user.page.username}
             plan={user.plan}
+            weeklyEmail={user.weeklyEmail}
             emailVerified={!!user.emailVerifiedAt}
             justVerified={verified === "1" ? true : verified === "0" ? false : null}
         />

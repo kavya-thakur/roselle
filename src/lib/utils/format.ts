@@ -17,3 +17,22 @@ export const formatNumber = (value: number) => value.toLocaleString("en-US");
 
 // A share of a whole, as a whole percentage: 0.4567 -> "46%"
 export const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
+
+// 25000, "USD" -> "$25,000". Whole amounts, the currency's own symbol, no decimals. Rupees are
+// grouped the Indian way (₹1,00,000), as people there write them.
+export const formatMoney = (amount: number, currency: string) =>
+    new Intl.NumberFormat(currency === "INR" ? "en-IN" : "en", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
+
+// "INR" -> "₹": the symbol on its own, for an amount box
+export const currencySymbol = (currency: string) =>
+    new Intl.NumberFormat("en", { style: "currency", currency }).formatToParts(0).find((part) => part.type === "currency")?.value ?? currency;
+
+// A length of time in hours, as people say it: "40 minutes", "5 hours", "2 days"
+export function formatHours(hours: number) {
+    if (hours < 1) return `${Math.max(1, Math.round(hours * 60))} minutes`;
+    if (hours < 48) return `${Math.round(hours)} hour${Math.round(hours) === 1 ? "" : "s"}`;
+    return `${Math.round(hours / 24)} days`;
+}
+
+// 1, "visitor" -> "1 visitor"; 3, "enquiry", "enquiries" -> "3 enquiries"
+export const plural = (count: number, one: string, many = `${one}s`) => `${formatNumber(count)} ${count === 1 ? one : many}`;
