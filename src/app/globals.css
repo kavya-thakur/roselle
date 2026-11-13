@@ -1,0 +1,272 @@
+@import "tailwindcss";
+
+/* Roselle's palette. Pages use these names (bg-cream, text-pink, border-line, ...), never raw
+   hex, so a colour change happens here only. Creator pages are the exception: their colours come
+   from each page's own theme (PageRenderer sets them as --page-* variables). */
+@theme {
+    /* the app: neutral greys and white, so people's own pages are the colourful thing on screen */
+    --color-cream: #f3f3f1; /* app background */
+    --color-canvas: #fafaf8; /* the page sheet inside the app */
+    --color-paper: #ffffff; /* cards, panels, inputs */
+    --color-sand: #ebebe6; /* hovers, chips, quiet fills */
+
+    /* text */
+    --color-ink: #141414;
+    --color-charcoal: #141414;
+    --color-muted: #676767;
+    --color-faint: #a0a0a0;
+
+    /* borders */
+    --color-line: #e5e5e0;
+    --color-line-strong: #d1d1cb;
+
+    /* the brand: deep forest green and hot pink, with soft pinks and a warm off-white */
+    --color-forest: #0b4d2c;
+    --color-pink: #e0408f;
+    --color-pink-hover: #c92f7b;
+    --color-rose: #f6b5cf; /* light pink: big secondary type on the landing page */
+    --color-blush: #fde3ee; /* soft pink wash: selected items, notices */
+    --color-shell: #fff7f5; /* the landing page's off-white */
+
+    --color-danger: #c4162a;
+    --color-success: #1f7a4a;
+
+    --shadow-soft: 0 1px 2px rgb(20 20 20 / 0.04), 0 8px 24px -12px rgb(20 20 20 / 0.14);
+    --shadow-lifted: 0 2px 6px rgb(20 20 20 / 0.06), 0 30px 60px -24px rgb(20 20 20 / 0.3);
+    /* the hard offset shadow on stickers */
+    --shadow-pop: 3px 3px 0 0 var(--color-ink);
+
+    --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Fonts come from next/font in layout.tsx */
+@theme inline {
+    --font-sans: var(--font-manrope);
+    --font-display: var(--font-bricolage);
+    --font-serif: var(--font-dm-serif);
+}
+
+body {
+    background: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-manrope), sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+    background: var(--color-rose);
+    color: var(--color-ink);
+}
+
+/* Headlines: Bricolage Grotesque at its heaviest, set tight */
+@utility font-display {
+    font-family: var(--font-bricolage), sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 0.98;
+}
+
+
+/* A fine film grain laid over gradients, so they read as printed rather than flat CSS.
+   The element gets position: relative; content that must sit above the grain needs z-index 2 */
+@utility grain {
+    position: relative;
+    isolation: isolate;
+
+    &::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+        opacity: 0.16;
+        mix-blend-mode: overlay;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+}
+
+/* ---------- Creator pages ----------
+   PageRenderer sets --page-* from the page's theme; these classes turn them into buttons and
+   cards, so one set of rules covers every template. */
+.page-button {
+    color: var(--page-button-text);
+    background: var(--page-button-bg);
+    border: var(--page-button-border-width, 1px) solid var(--page-button-border);
+    border-radius: var(--page-radius);
+    box-shadow: var(--page-button-shadow);
+    backdrop-filter: var(--page-blur);
+    transition: transform 0.35s var(--ease-soft);
+}
+.page-button:hover {
+    transform: translate(-1px, -2px);
+}
+.page-button:active {
+    transform: translateY(0) scale(0.99);
+}
+.page-card {
+    /* a pill-shaped card would cut its picture into a dome */
+    border-radius: min(var(--page-radius), 1.5rem);
+    border: 1px solid color-mix(in oklab, var(--page-text) 14%, transparent);
+    background: color-mix(in oklab, var(--page-text) 5%, transparent);
+    backdrop-filter: var(--page-blur);
+}
+
+/* ---------- Motion ---------- */
+
+/* Things arriving on screen: rise a little and come into focus. --order staggers a list. */
+.rise {
+    animation: rise 0.8s var(--ease-soft) both;
+    animation-delay: calc(var(--order, 0) * 70ms);
+}
+@keyframes rise {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+        filter: blur(4px);
+    }
+}
+
+/* Marketing sections: hidden until Reveal (components/Reveal.tsx) sees them scroll into view */
+.reveal {
+    opacity: 0;
+    transform: translateY(28px);
+    transition:
+        opacity 0.9s var(--ease-soft),
+        transform 0.9s var(--ease-soft);
+    transition-delay: calc(var(--order, 0) * 90ms);
+}
+.reveal[data-shown] {
+    opacity: 1;
+    transform: none;
+}
+
+/* The hero phones drift at different speeds while scrolling. Scroll-driven CSS, no script:
+   browsers without it simply keep them still. */
+@supports (animation-timeline: scroll()) {
+    .parallax {
+        animation: parallax linear both;
+        animation-timeline: scroll(root);
+        animation-range: 0 100vh;
+    }
+    @keyframes parallax {
+        to {
+            transform: translateY(var(--parallax, -60px));
+        }
+    }
+}
+
+@keyframes float {
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+/* Sign-in panel: a doubled column of pages moved up by half its height, so each loop lands
+   where it started. Registered in @theme: Tailwind drops keyframes no --animate-* token points at. */
+@theme {
+    --animate-drift: drift 48s linear infinite;
+
+    @keyframes drift {
+        to {
+            transform: translateY(-50%);
+        }
+    }
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+}
+
+/* Native <dialog> (components/Modal.tsx) fades and lifts in */
+dialog.popup {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+    transition:
+        opacity 0.25s var(--ease-soft),
+        transform 0.25s var(--ease-soft),
+        overlay 0.25s allow-discrete,
+        display 0.25s allow-discrete;
+}
+dialog.popup[open] {
+    opacity: 1;
+    transform: none;
+}
+@starting-style {
+    dialog.popup[open] {
+        opacity: 0;
+        transform: translateY(8px) scale(0.98);
+    }
+}
+dialog.popup::backdrop {
+    background: rgb(28 23 22 / 0.35);
+    backdrop-filter: blur(2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-delay: 0ms !important;
+        transition-duration: 0.01ms !important;
+    }
+    .reveal {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* Creator pages shown small and many at once on the landing page (ProfileCard). The film grain is
+   a blend layer, the glass buttons a live blur and the arrivals an animation: all repainted on
+   every frame while a card moves. At thumbnail size nobody can see them, so they're switched off. */
+.page-lite .grain::after {
+    display: none;
+}
+.page-lite * {
+    backdrop-filter: none !important;
+    animation: none !important;
+    transition: none !important;
+}
+
+/* ---------- Scrollbars ----------
+   Thin and quiet everywhere: a soft grey thumb on no track (in Safari a little darker under the pointer).
+   Firefox and newer Chrome read the two standard properties; Safari reads the ::-webkit ones. */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(20 20 20 / 0.18) transparent;
+}
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background: rgb(20 20 20 / 0.18) padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(20 20 20 / 0.34);
+}
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* The music tile's bars on the landing page, bobbing as if a song is playing */
+@keyframes equalizer {
+    50% {
+        transform: scaleY(0.35);
+    }
+}
+
+/* An FAQ answer sliding in as it opens (landing page) */
+@keyframes faq-open {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+}

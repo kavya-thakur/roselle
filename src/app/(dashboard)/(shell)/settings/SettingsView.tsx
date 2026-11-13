@@ -1,0 +1,247 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+import { Button } from "@/components/Button";
+import { Field, inputClass } from "@/components/Field";
+import { api } from "@/lib/api/client";
+import type { Plan } from "@/lib/plans";
+import { deleteAccountSchema, passwordChangeSchema, usernameChangeSchema, type PasswordFormValues, type UsernameFormValues } from "@/lib/validations/settings";
+import { SITE_HOST } from "@/lib/site";
+
+interface SettingsViewProps {
+    email: string;
+    username: string;
+    plan: Plan;
+    emailVerified: boolean;
+    // just back from the email's link: did it work?
+    justVerified: boolean | null;
+}
+
+const section = "mt-6 rounded-2xl border border-line bg-paper p-6 shadow-soft";
+const notice = (ok: boolean) => `rounded-xl px-3.5 py-2.5 text-sm ${ok ? "bg-success/10 text-success" : "bg-blush text-pink"}`;
+
+export function SettingsView({ email, username, plan, emailVerified, justVerified }: SettingsViewProps) {
+    const router = useRouter();
+    const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+    const {
+        register,
+        handleSubmit,
+        control,
+        formState: { errors, isSubmitting },
+    } = useForm<UsernameFormValues>({
+        resolver: zodResolver(usernameChangeSchema),
+        defaultValues: { username },
+    });
+
+    const changed = useWatch({ control, name: "username" }).trim().toLowerCase() !== username;
+
+    async function onSubmit(values: UsernameFormValues) {
+        setResult(null);
+        try {
+            await api("/settings/username", { method: "PUT", body: values });
+            setResult({ ok: true, message: `Your page now lives at ${SITE_HOST}/${values.username}` });
+            // the header's "View page" link reads the username on the server
+            router.refresh();
+        } catch (error) {
+            setResult({ ok: false, message: (error as Error).message });
+        }
+    }
+
+    return (
+        <main className="flex-1 overflow-y-auto">
+            <div className="mx-auto max-w-2xl px-6 py-12">
+                <h1 className="font-display text-5xl">Settings</h1>
+
+                <section className="mt-10 rounded-2xl border border-line bg-paper p-6 shadow-soft">
+                    <h2 className="text-lg font-semibold">Your address</h2>
+                    <p className="mt-1 text-sm text-muted">The link you put in your bio. If you change it, the old one stops working and someone else could claim it.</p>
+
+                    <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-5 space-y-4">
+                        <Field label="Username" htmlFor="username" error={errors.username?.message}>
+                            <div className={`${inputClass} flex items-center px-0 focus-within:border-pink focus-within:bg-white`} aria-invalid={!!errors.username}>
+                                <span className="pl-3.5 text-faint select-none">{SITE_HOST}/</span>
+                                <input id="username" autoCapitalize="none" spellCheck={false} aria-invalid={!!errors.username} {...register("username")} className="h-full min-w-0 flex-1 bg-transparent pr-3.5 font-semibold outline-none" />
+                            </div>
+                        </Field>
+
+                        {result && (
+                            <p role="status" className={`rounded-xl px-3.5 py-2.5 text-sm ${result.ok ? "bg-success/10 text-success" : "bg-blush text-pink"}`}>
+                                {result.message}
+                            </p>
+                        )}
+
+                        <Button type="submit" busy={isSubmitting} disabled={!changed}>
+                            Change address
+                        </Button>
+                    </form>
+                </section>
+
+                <AccountSection email={email} plan={plan} emailVerified={emailVerified} justVerified={justVerified} />
+                <PasswordSection />
+                <DeleteSection />
+            </div>
+        </main>
+    );
+}
+
+// Who's signed in, whether that address is confirmed, and which plan they're on
+function AccountSection({ email, plan, emailVerified, justVerified }: Omit<SettingsViewProps, "username">) {
+    const [sent, setSent] = useState<{ ok: boolean; message: string } | null>(null);
+    const [sending, setSending] = useState(false);
+
+    async function resend() {
+        setSending(true);
+        try {
+            await api("/auth/verify", { method: "POST" });
+            setSent({ ok: true, message: `Sent. Check ${email} (and the spam folder).` });
+        } catch (error) {
+            setSent({ ok: false, message: (error as Error).message });
+        } finally {
+            setSending(false);
+        }
+    }
+
+    return (
+        <section className={section}>
+            <h2 className="text-lg font-semibold">Account</h2>
+            <p className="mt-1 text-sm text-muted">
+                Signed in as <span className="font-semibold text-ink">{email}</span>
+                {emailVerified ? " · confirmed" : ""}
+            </p>
+            <p className="mt-1 text-sm text-muted">
+                Plan: <span className="font-semibold text-ink">{plan === "PRO" ? "Pro" : "Free"}</span>
+            </p>
+
+            {justVerified !== null && (
+                <p role="status" className={`mt-4 ${notice(justVerified)}`}>
+                    {justVerified ? "Thanks, your email is confirmed." : "That link has expired or was already used."}
+                </p>
+            )}
+
+            {!emailVerified && (
+                <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl bg-sand/70 px-4 py-3 text-sm">
+                    <span className="flex-1">Confirm your email, so you can always get back in if you forget your password.</span>
+                    <Button look="secondary" size="small" busy={sending} onClick={resend}>
+                        Send the link again
+                    </Button>
+                </div>
+            )}
+            {sent && (
+                <p role="status" className={`mt-3 ${notice(sent.ok)}`}>
+                    {sent.message}
+                </p>
+            )}
+        </section>
+    );
+}
+
+function PasswordSection() {
+    const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+    const {
+        register,
+        handleSubmit,
+        reset,
+        setError,
+        formState: { errors, isSubmitting },
+    } = useForm<PasswordFormValues>({ resolver: zodResolver(passwordChangeSchema), defaultValues: { current: "", password: "" } });
+
+    async function onSubmit(values: PasswordFormValues) {
+        setResult(null);
+        try {
+            await api("/settings/password", { method: "PUT", body: values });
+            reset();
+            setResult({ ok: true, message: "Password changed. Any other devices have been signed out." });
+        } catch (error) {
+            const message = (error as Error).message;
+            // a wrong current password belongs under that field
+            if (message.includes("current password")) setError("current", { message });
+            else setResult({ ok: false, message });
+        }
+    }
+
+    return (
+        <section className={section}>
+            <h2 className="text-lg font-semibold">Password</h2>
+            <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-5 space-y-4">
+                <Field label="Current password" htmlFor="current" error={errors.current?.message}>
+                    <input id="current" type="password" autoComplete="current-password" aria-invalid={!!errors.current} {...register("current")} className={inputClass} />
+                </Field>
+                <Field label="New password" htmlFor="new-password" error={errors.password?.message}>
+                    <input id="new-password" type="password" autoComplete="new-password" placeholder="At least 8 characters" aria-invalid={!!errors.password} {...register("password")} className={inputClass} />
+                </Field>
+                {result && (
+                    <p role="status" className={notice(result.ok)}>
+                        {result.message}
+                    </p>
+                )}
+                <Button type="submit" busy={isSubmitting}>
+                    Change password
+                </Button>
+            </form>
+        </section>
+    );
+}
+
+// Two steps on purpose: open it, then type the password and confirm
+function DeleteSection() {
+    const router = useRouter();
+    const [open, setOpen] = useState(false);
+    const [password, setPassword] = useState("");
+    const [error, setError] = useState<string | null>(null);
+    const [busy, setBusy] = useState(false);
+
+    async function remove() {
+        const parsed = deleteAccountSchema.safeParse({ password });
+        if (!parsed.success) return setError(parsed.error.issues[0].message);
+
+        setBusy(true);
+        setError(null);
+        try {
+            await api("/settings/account", { method: "DELETE", body: parsed.data });
+            router.replace("/");
+        } catch (failure) {
+            setError((failure as Error).message);
+            setBusy(false);
+        }
+    }
+
+    return (
+        <section className={`${section} border-danger/30`}>
+            <h2 className="text-lg font-semibold">Delete account</h2>
+            <p className="mt-1 text-sm text-muted">Your page goes offline and its address is free for anyone. Your links, images and analytics are deleted for good.</p>
+
+            {open ? (
+                <div className="mt-5 space-y-4">
+                    <Field label="Type your password to confirm" htmlFor="delete-password" error={error ?? undefined}>
+                        <input
+                            id="delete-password"
+                            type="password"
+                            autoComplete="current-password"
+                            value={password}
+                            onChange={(event) => setPassword(event.target.value)}
+                            aria-invalid={!!error}
+                            className={inputClass}
+                        />
+                    </Field>
+                    <div className="flex gap-2">
+                        <Button onClick={remove} busy={busy} className="bg-danger hover:bg-danger/90">
+                            Delete everything
+                        </Button>
+                        <Button look="ghost" onClick={() => setOpen(false)}>
+                            Keep my account
+                        </Button>
+                    </div>
+                </div>
+            ) : (
+                <Button look="secondary" onClick={() => setOpen(true)} className="mt-5 text-danger">
+                    Delete my account
+                </Button>
+            )}
+        </section>
+    );
+}

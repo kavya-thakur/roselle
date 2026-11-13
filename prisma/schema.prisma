@@ -1,0 +1,160 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// FREE or PRO. Nothing charges for Pro yet: what each plan unlocks is one list in
+// src/lib/plans.ts, and an account is upgraded by hand (see the README) until payments exist.
+enum Plan {
+  FREE
+  PRO
+}
+
+model User {
+  id              Int       @id @default(autoincrement())
+  email           String    @unique
+  passwordHash    String
+  plan            Plan      @default(FREE)
+  // set when they click the link in the welcome email; nothing is blocked before that
+  emailVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
+
+  page     Page?
+  sessions Session[]
+  media    Media[]
+  tokens   Token[]
+}
+
+enum TokenKind {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
+// A one-time link sent by email. Like sessions, only the sha256 of the token is kept, and a
+// token is deleted the moment it's used.
+model Token {
+  id        String    @id
+  userId    Int
+  kind      TokenKind
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// A signed-in browser. The cookie holds a random token; only its sha256 is stored here, so a
+// leaked database can't be used to sign in. Deleting the row signs that browser out.
+model Session {
+  id        String   @id
+  userId    Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Each person has one page, at roselle.page/<username>.
+// The whole page (profile, theme, blocks) is one JSON document checked by pageSchema
+// (src/lib/validations/page.ts). The editor autosaves into `draft`; Publish copies it to
+// `published`, which is the only one visitors ever see.
+model Page {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @unique
+  username    String    @unique
+  draft       Json
+  published   Json?
+  publishedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+  // taken down by an admin for breaking the rules: visitors get a 404 until it's restored.
+  // The reason is what the owner is told.
+  suspendedAt     DateTime?
+  suspendedReason String?
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events    Event[]
+  reports   Report[]
+  enquiries Enquiry[]
+}
+
+// A message a visitor sent through a "Work with me" block. The creator gets it by email (reply
+// goes straight to the visitor) and in their inbox at /inbox.
+model Enquiry {
+  id        Int       @id @default(autoincrement())
+  pageId    Int
+  name      String
+  email     String
+  message   String
+  createdAt DateTime  @default(now())
+  // opened in the inbox
+  readAt    DateTime?
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId, createdAt])
+}
+
+// A visitor flagging a page (the "Report" link at the bottom of every public page).
+// Admins work through the open ones at /admin.
+model Report {
+  id         Int       @id @default(autoincrement())
+  pageId     Int
+  // one of REPORT_REASONS in src/lib/validations/report.ts
+  reason     String
+  details    String
+  // only if they want to hear back
+  email      String?
+  createdAt  DateTime  @default(now())
+  // dismissed, or the page was taken down
+  resolvedAt DateTime?
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([resolvedAt, createdAt])
+}
+
+enum EventType {
+  VIEW
+  CLICK
+}
+
+// One visit to a page, or one click on a link in it. Analytics are counted from these rows.
+model Event {
+  id        Int       @id @default(autoincrement())
+  pageId    Int
+  type      EventType
+  // the clicked block's id inside the page JSON (clicks only). Not a relation: blocks aren't rows
+  blockId   String?
+  // a hash of IP + browser + day, never the IP itself; the same person on the same day counts once
+  visitorId String
+  // where the visit came from: "instagram.com", "direct", or ?utm_source=
+  source    String
+  // "mobile", "tablet" or "desktop"
+  device    String
+  createdAt DateTime  @default(now())
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId, createdAt])
+}
+
+// Uploaded images (avatars, gallery pictures), served by /media/<id>
+// ponytail: stored in Postgres as bytes; move them to object storage (S3/R2) once there are many
+model Media {
+  id        String   @id @default(cuid())
+  userId    Int
+  mimeType  String
+  data      Bytes
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
