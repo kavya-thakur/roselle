@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
     IconAlertCircle,
+    IconArrowBackUp,
+    IconArrowForwardUp,
     IconArrowUpRight,
     IconBrush,
     IconCheck,
@@ -14,6 +16,7 @@ import {
     IconLayoutList,
     IconLoader2,
     IconMenu2,
+    IconRestore,
     IconSettings,
     IconUserSquareRounded,
     IconX,
@@ -31,6 +34,7 @@ import { LogoutButton } from "../LogoutButton";
 import { ContentPanel } from "./ContentPanel";
 import { HeaderPanel } from "./HeaderPanel";
 import { DesignPanel } from "./DesignPanel";
+import { record, redo, start, undo } from "./history";
 
 const SECTIONS = [
     { id: "content", label: "Content", icon: IconLayoutList },
@@ -57,9 +61,17 @@ interface EditorViewProps {
 // takes the whole width, the sections sit in a bar at the bottom, and Preview opens the page
 // full screen.
 // Every change is saved as a draft a moment later; Publish makes the draft what visitors see.
+// Any change can be undone and redone (the buttons in the top bar, or ⌘Z / ⇧⌘Z), and the whole
+// draft can be put back to the original with "Discard changes", after a confirmation.
 export function EditorView({ username, initialDraft, initialPublished, initialPublishedAt, clicks, reviews }: EditorViewProps) {
     const router = useRouter();
-    const [page, setPage] = useState(initialDraft);
+    const [history, setHistory] = useState(() => start(initialDraft));
+    const page = history.present;
+    // what every panel calls to change the page: each change becomes a step in the history
+    const setPage: Dispatch<SetStateAction<PageDoc>> = useCallback(
+        (change) => setHistory((current) => record(current, typeof change === "function" ? change(current.present) : change, Date.now())),
+        [],
+    );
     const [published, setPublished] = useState(initialPublished);
     const [publishedAt, setPublishedAt] = useState(initialPublishedAt);
     const [section, setSection] = useState<Section>("content");
@@ -76,7 +88,12 @@ export function EditorView({ username, initialDraft, initialPublished, initialPu
     // Autosave: each change restarts the timer, so a burst of typing is one save
     useEffect(() => {
         const json = JSON.stringify(page);
-        if (json === savedJson.current) return;
+        // back to what's saved (a change undone before it was saved, or one that failed to save):
+        // nothing to do, and the "Saving" or "Not saved" from that change must not be left showing
+        if (json === savedJson.current) {
+            setSave((previous) => (previous.state === "saved" ? previous : { state: "saved" }));
+            return;
+        }
 
         setSave({ state: "saving" });
         const timer = setTimeout(async () => {
@@ -104,7 +121,34 @@ export function EditorView({ username, initialDraft, initialPublished, initialPu
         return () => window.removeEventListener("beforeunload", warn);
     }, [save.state]);
 
+    // ⌘Z / Ctrl+Z undoes, with Shift (or Ctrl+Y) redoes, wherever the cursor is: the text fields
+    // are part of the page, so their typing is undone through the same history
+    useEffect(() => {
+        const onKey = (event: KeyboardEvent) => {
+            if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+            const key = event.key.toLowerCase();
+            if (key !== "z" && key !== "y") return;
+            event.preventDefault();
+            setHistory((current) => (key === "y" || event.shiftKey ? redo(current) : undo(current)));
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, []);
+
     const unpublished = JSON.stringify(page) !== JSON.stringify(published);
+
+    // "The page I had": what visitors see now, or, for a page never published, the page as it was
+    // when the editor opened
+    const original = published ?? initialDraft;
+    const changed = JSON.stringify(page) !== JSON.stringify(original);
+    const discardDialog = useRef<HTMLDialogElement>(null);
+
+    // Back to the original, once confirmed. A step like any other, so Undo still brings the edits back.
+    function discard() {
+        discardDialog.current?.close();
+        setHistory((current) => record({ ...current, changedAt: 0 }, original, Date.now()));
+        toast(published ? "Back to your live page" : "Back to where you started", { detail: "Changed your mind? Undo brings your edits back." });
+    }
 
     async function publish() {
         setPublishing(true);
@@ -159,7 +203,29 @@ export function EditorView({ username, initialDraft, initialPublished, initialPu
                     )}
                 </div>
 
-                <a href={`/${username}`} target="_blank" className="absolute left-1/2 hidden h-11 -translate-x-1/2 items-center gap-2 rounded-full bg-paper px-4 text-sm font-semibold shadow-soft hover:bg-sand md:flex">
+                {/* top left, like most design tools, and clear of the toasts at the top centre */}
+                <div className="flex rounded-full bg-paper p-1 shadow-soft">
+                    <button onClick={() => setHistory(undo)} disabled={history.past.length === 0} aria-label="Undo" title="Undo" className="flex size-9 items-center justify-center rounded-full transition hover:bg-sand disabled:pointer-events-none disabled:opacity-30">
+                        <IconArrowBackUp size={18} />
+                    </button>
+                    <button onClick={() => setHistory(redo)} disabled={history.future.length === 0} aria-label="Redo" title="Redo" className="flex size-9 items-center justify-center rounded-full transition hover:bg-sand disabled:pointer-events-none disabled:opacity-30">
+                        <IconArrowForwardUp size={18} />
+                    </button>
+                </div>
+                {/* with Undo and Redo: the ways back */}
+                {changed && (
+                    <button
+                        onClick={() => discardDialog.current?.showModal()}
+                        aria-label="Discard changes"
+                        title="Discard changes"
+                        className="flex h-11 items-center gap-1.5 rounded-full bg-paper px-3.5 text-sm font-semibold shadow-soft transition hover:bg-sand lg:px-4"
+                    >
+                        <IconRestore size={17} />
+                        <span className="hidden lg:inline">Discard changes</span>
+                    </button>
+                )}
+
+                <a href={`/${username}`} target="_blank" className="absolute left-1/2 hidden h-11 -translate-x-1/2 items-center gap-2 rounded-full bg-paper px-4 text-sm font-semibold shadow-soft hover:bg-sand xl:flex">
                     @{username}
                     <IconArrowUpRight size={15} className="text-muted" />
                 </a>
@@ -178,6 +244,36 @@ export function EditorView({ username, initialDraft, initialPublished, initialPu
                     )}
                 </div>
             </header>
+
+            {/* the confirmation; a native <dialog>, so Esc, the backdrop and focus come for free */}
+            <dialog
+                ref={discardDialog}
+                onClick={(event) => event.target === discardDialog.current && discardDialog.current.close()}
+                aria-labelledby="discard-title"
+                className="popup m-auto w-[min(400px,calc(100%-24px))] rounded-[2rem] bg-paper p-0 text-ink shadow-lifted"
+            >
+                <div className="px-6 pt-7 pb-6 text-center sm:px-8">
+                    <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-sand">
+                        <IconRestore size={22} />
+                    </span>
+                    <h2 id="discard-title" className="mt-4 text-lg font-semibold">
+                        Discard all your changes?
+                    </h2>
+                    <p className="mt-2 text-sm leading-relaxed text-muted">
+                        {published
+                            ? "Your page goes back to how it looks live right now. Everything you've changed since you last published will be removed."
+                            : "Your page goes back to how it was when you opened the editor. Everything you've changed since will be removed."}
+                    </p>
+                    <div className="mt-6 grid grid-cols-2 gap-2.5">
+                        <button autoFocus onClick={() => discardDialog.current?.close()} className="h-11 rounded-full bg-sand text-sm font-semibold transition hover:bg-line">
+                            Keep editing
+                        </button>
+                        <button onClick={discard} className="h-11 rounded-full bg-danger text-sm font-semibold text-white transition hover:brightness-110">
+                            Yes, discard
+                        </button>
+                    </div>
+                </div>
+            </dialog>
 
             <div className="flex min-h-0 flex-1">
                 {/* ---------- the section rail ---------- */}
