@@ -7,10 +7,12 @@ import { sendEmail } from "@/lib/email/send";
 import { getPublishedPage } from "@/lib/pages/publish";
 import { newReviewToken, REVIEW_LINK_DAYS } from "@/lib/reviews";
 import { SITE_URL } from "@/lib/site";
+import { reviewMessage } from "@/lib/messages";
 
-// Emails a paid client a one-time link to review the work. Asking again sends a fresh link and
-// the old one stops working.
-export async function POST(_req: NextRequest, { params }: RouteContext<"/api/enquiry/[id]/review-request">) {
+// Makes a paid client's one-time review link and hands it back, for the creator to send from their
+// own WhatsApp or email; with { via: "roselle" }, Roselle emails it for them. Asking again makes a
+// fresh link and the old one stops working.
+export async function POST(req: NextRequest, { params }: RouteContext<"/api/enquiry/[id]/review-request">) {
     try {
         const user = await getCurrentUser();
         if (!user) throw new Error("UNAUTHORIZED");
@@ -32,18 +34,20 @@ export async function POST(_req: NextRequest, { params }: RouteContext<"/api/enq
         const reviewRequestedAt = new Date();
         await prisma.enquiry.update({ where: { id: enquiry.id }, data: { reviewTokenHash: hash, reviewRequestedAt } });
 
-        const creator = (await getPublishedPage(user.page.username))?.doc.profile.name || user.page.username;
-        after(() =>
-            sendEmail({
-                to: enquiry.email,
-                fromName: `${creator} via Roselle`,
-                replyTo: { email: user.email, name: creator },
-                subject: `How did it go? ${creator} would love your thoughts`,
-                text: `Hi ${enquiry.name},\n\nThank you for working with ${creator}${enquiry.service ? ` on ${enquiry.service}` : ""}. Would you share a few words about how it went? It takes a minute and helps others find good work.\n\n${SITE_URL}/review/${token}\n\nThe link works for ${REVIEW_LINK_DAYS} days.`,
-            }).catch((error) => console.error("Review request email error:", error)),
-        );
+        const link = `${SITE_URL}/review/${token}`;
+        // the body is optional: no body, or anything but "self", means Roselle emails it
+        const via = (await req.json().catch(() => null))?.via === "self" ? "self" : "roselle";
+        if (via === "roselle") {
+            const creator = (await getPublishedPage(user.page.username))?.doc.profile.name || user.page.username;
+            const { subject, text } = reviewMessage({ creator, client: enquiry.name, service: enquiry.service, link, days: REVIEW_LINK_DAYS }, "roselle");
+            after(() =>
+                sendEmail({ to: enquiry.email, fromName: `${creator} via Roselle`, replyTo: { email: user.email, name: creator }, subject, text }).catch((error) =>
+                    console.error("Review request email error:", error),
+                ),
+            );
+        }
 
-        return NextResponse.json({ ok: true, data: { reviewRequestedAt } });
+        return NextResponse.json({ ok: true, data: { reviewRequestedAt, link } });
     } catch (error) {
         return handleRouteError(error, "Request review");
     }

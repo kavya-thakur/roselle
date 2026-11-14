@@ -111,3 +111,11 @@ export function paymentTarget(raw: string): { kind: "url"; href: string } | { ki
     const href = safeHref(value);
     return href?.startsWith("https://") ? { kind: "url", href } : undefined;
 }
+
+// Where a tap on a block goes on the page: a pick's own link (by the pick's id), a project's case
+// study on Roselle, or the block's link. The page and the click counter (/go) both ask this.
+export function destinationOf(block: Block, username: string | undefined, itemId?: string | null) {
+    if (block.type === "picks") return safeHref(block.items.find((item) => item.id === itemId)?.url ?? "");
+    if (hasCaseStudy(block)) return username ? `/${username}/work/${block.id}` : undefined;
+    return targetOf(block);
+}

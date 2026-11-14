@@ -6,6 +6,8 @@ import { POST as leaveReview } from "@/app/api/review/route";
 import { DELETE as deleteReview, PATCH as approveReview } from "@/app/api/reviews/[id]/route";
 import { GET as dailyJob } from "@/app/api/cron/daily/route";
 import { getApprovedReviews } from "@/lib/reviews";
+import { EVENT_DAYS } from "@/lib/reports/daily";
+import { pageStats } from "@/lib/analytics/stats";
 import { createCreator, emails, params, read, request, settle, signInAs } from "./helpers";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -24,6 +26,16 @@ const reviewToken = () => emails.at(-1)!.text.match(/\/review\/([\w-]+)/)![1];
 const review = { name: "Arjun", rating: 5, text: "Calm, quick, and the photos arrived early." };
 
 describe("reviews", () => {
+    it("hand the creator a working one-time link to send themselves, without emailing anyone", async () => {
+        const { enquiry } = await lenaWithEnquiry("PAID");
+        const res = await read(await requestReview(request(`/api/enquiry/${enquiry.id}/review-request`, { method: "POST", body: { via: "self" } }), params({ id: String(enquiry.id) })));
+        await settle();
+        expect(emails).toHaveLength(0);
+        const token = res.body.data.link.match(/\/review\/([\w-]+)/)[1];
+        expect((await leaveReview(request("/api/review", { method: "POST", body: { token, ...review } }))).status).toBe(201);
+        expect((await leaveReview(request("/api/review", { method: "POST", body: { token, ...review } }))).status).toBe(410);
+    });
+
     it("are only asked for once the work is paid", async () => {
         const { enquiry } = await lenaWithEnquiry("BOOKED");
         expect((await askForReview(enquiry.id)).status).toBe(409);
@@ -106,6 +118,14 @@ describe("reviews", () => {
 describe("payment requests", () => {
     const ask = (id: number, body: object) => requestPayment(request(`/api/enquiry/${id}/payment-request`, { method: "POST", body }), params({ id: String(id) }));
 
+    it("are only recorded when the creator sends them from their own WhatsApp or email", async () => {
+        const { enquiry } = await lenaWithEnquiry("BOOKED");
+        expect((await ask(enquiry.id, { amount: 10000, link: "lena@okhdfcbank", via: "self" })).status).toBe(200);
+        await settle();
+        expect(emails).toHaveLength(0);
+        expect(await prisma.enquiry.findUniqueOrThrow({ where: { id: enquiry.id } })).toMatchObject({ paymentRequestedAmount: 10000 });
+    });
+
     it("email a booked client what's due and their UPI id, and remember where they pay", async () => {
         const { lena, enquiry } = await lenaWithEnquiry("BOOKED");
         const res = await read(await ask(enquiry.id, { amount: 10000, link: "lena@okhdfcbank", note: "50% deposit to hold your date." }));
@@ -142,6 +162,24 @@ describe("payment requests", () => {
 
 describe("the daily job", () => {
     const run = (query = "", secret = "test-cron-secret") => dailyJob(request(`/api/cron/daily${query}`, { headers: { authorization: `Bearer ${secret}` } }));
+
+    it("clears out expired sign-ins and email links, and visits older than it keeps", async () => {
+        const lena = await createCreator("lena");
+        const userId = lena.user.id;
+        await prisma.session.createMany({
+            data: [
+                { id: "expired", userId, expiresAt: new Date(Date.now() - DAY) },
+                { id: "live", userId, expiresAt: new Date(Date.now() + DAY) },
+            ],
+        });
+        await prisma.token.create({ data: { id: "used-up", userId, kind: "RESET_PASSWORD", expiresAt: new Date(Date.now() - DAY) } });
+        const visit = { pageId: lena.page.id, type: "VIEW" as const, visitorId: "v", source: "direct", device: "mobile" };
+        await prisma.event.createMany({ data: [{ ...visit, createdAt: new Date(Date.now() - (EVENT_DAYS + 1) * DAY) }, { ...visit, createdAt: new Date(Date.now() - 100 * DAY) }] });
+
+        expect((await read(await run())).body.data.removed).toEqual({ sessions: 1, tokens: 1, events: 1 });
+        expect(await prisma.session.findMany({ select: { id: true } })).toEqual([{ id: "live" }]);
+        expect(await prisma.event.count()).toBe(1);
+    });
 
     it("refuses to run without the secret", async () => {
         expect((await run("", "wrong")).status).toBe(401);
@@ -186,5 +224,28 @@ describe("the daily job", () => {
         expect(emails.map((email) => email.to)).toEqual(["lena@example.com"]);
         expect(emails[0].subject).toBe("Your week: 0 visitors, 1 enquiry, 0 booked");
         expect(emails[0].text).toContain("1 enquiry is still open.");
+    });
+});
+
+describe("analytics", () => {
+    it("counts views, clicks and different visitors in the range, and the range before it apart", async () => {
+        const lena = await createCreator("lena");
+        const at = (daysAgo: number) => new Date(Date.now() - daysAgo * DAY);
+        const event = (type: "VIEW" | "CLICK", visitorId: string, daysAgo: number) => ({ pageId: lena.page.id, type, visitorId, source: "direct", device: "mobile", createdAt: at(daysAgo) });
+        await prisma.event.createMany({
+            data: [
+                // this week: three views from two people, one click
+                event("VIEW", "a", 1),
+                event("VIEW", "a", 1),
+                event("VIEW", "b", 2),
+                event("CLICK", "a", 1),
+                // the week before
+                event("VIEW", "c", 9),
+            ],
+        });
+
+        const stats = await pageStats(lena.page.id, 7);
+        expect(stats.current).toMatchObject({ views: 3, visitors: 2, clicks: 1 });
+        expect(stats.previous).toMatchObject({ views: 1, visitors: 1, clicks: 0 });
     });
 });

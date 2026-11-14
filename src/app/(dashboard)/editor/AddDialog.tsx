@@ -15,6 +15,8 @@ import {
     IconPhoto,
     IconPlayerPlay,
     IconSearch,
+    IconShoppingBag,
+    IconChartBar,
     IconStar,
     IconTag,
     IconX,
@@ -38,6 +40,8 @@ export const BLOCK_ICONS: Record<BlockType, typeof IconLink> = {
     services: IconTag,
     contact: IconMessageCircle,
     reviews: IconStar,
+    picks: IconShoppingBag,
+    stats: IconChartBar,
 };
 
 // Ready-made links for the places people link to most: pick one, then just add your handle

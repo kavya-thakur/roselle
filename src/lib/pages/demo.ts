@@ -24,8 +24,16 @@ export const DEMO_PAGES: PageDoc[] = [
         seo: { title: "", description: "" },
         theme: theme("picnic"),
         blocks: blocks([
-            { type: "link", title: "Plan your celebration", url: "https://example.com", featured: true },
-            { type: "link", title: "2027 wedding dates", url: "https://example.com" },
+            { type: "link", title: "Plan your celebration", subtitle: "Weddings, birthdays, long lunches", url: "https://example.com", featured: true },
+            { type: "link", title: "2027 wedding dates", subtitle: "Six Saturdays left", url: "https://example.com" },
+            {
+                type: "stats",
+                items: [
+                    { id: "s1", value: "120+", label: "weddings" },
+                    { id: "s2", value: "9 yrs", label: "planning" },
+                    { id: "s3", value: "4.9", label: "rating" },
+                ],
+            },
             { type: "heading", text: "Recent parties" },
             {
                 type: "project",
@@ -54,14 +62,14 @@ export const DEMO_PAGES: PageDoc[] = [
         theme: theme("rosebud"),
         blocks: blocks([
             { type: "heading", text: "The studio" },
-            { type: "link", title: "Spring collection, now open", url: "https://example.com", featured: true },
+            { type: "link", title: "Spring collection, now open", subtitle: "Cups, bowls and vases, made in March", url: "https://example.com", featured: true, code: "SPRING10" },
             { type: "link", title: "Commissions & wholesale", url: "https://example.com" },
             {
-                type: "gallery",
-                title: "Recent pieces",
-                images: [
-                    { src: photo("photo-1781150363961-6284b0a95933", 600), alt: "A blush glaze cup in hand" },
-                    { src: photo("photo-1781150363981-546c399139df", 600), alt: "The wave cup, on the studio table" },
+                type: "picks",
+                title: "From the shelf",
+                items: [
+                    { id: "p1", title: "Blush glaze cup", label: "$42", image: photo("photo-1781150363961-6284b0a95933", 600), url: "https://example.com" },
+                    { id: "p2", title: "The wave cup", label: "$48", image: photo("photo-1781150363981-546c399139df", 600), url: "https://example.com" },
                 ],
             },
             { type: "text", text: "Every piece is thrown by hand in a small studio by the river. Shipping worldwide." },
@@ -83,9 +91,17 @@ export const DEMO_PAGES: PageDoc[] = [
         seo: { title: "", description: "" },
         theme: theme("poster"),
         blocks: blocks([
-            { type: "link", title: "Listen to Velvet Hours", url: "https://example.com", featured: true, thumbnail: photo("photo-1608789637632-ecb75e322555", 120) },
-            { type: "link", title: "Tour dates, Europe 2026", url: "https://example.com" },
-            { type: "link", title: "Merch & vinyl", url: "https://example.com" },
+            { type: "link", title: "Listen to Velvet Hours", subtitle: "The new record, out everywhere", url: "https://example.com", featured: true, thumbnail: photo("photo-1608789637632-ecb75e322555", 120) },
+            { type: "link", title: "Tour dates, Europe 2026", subtitle: "Paris, Berlin, Lisbon and more", url: "https://example.com" },
+            { type: "link", title: "Merch & vinyl", url: "https://example.com", code: "VELVET15" },
+            {
+                type: "stats",
+                items: [
+                    { id: "s1", value: "2.4M", label: "streams" },
+                    { id: "s2", value: "18", label: "cities" },
+                    { id: "s3", value: "3", label: "records" },
+                ],
+            },
             { type: "heading", text: "The record" },
             {
                 type: "project",

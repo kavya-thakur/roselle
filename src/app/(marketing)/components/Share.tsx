@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { DrawSVGPlugin } from "gsap/DrawSVGPlugin";
@@ -28,8 +28,49 @@ const CENTRE = { x: 500, y: 300 };
 
 // "Share it everywhere": a printed card with the page's QR code in the middle, and lines drawing
 // themselves in from the places the same link goes, while those places pop up one by one.
+//
+// Below laptop width the places sit in two rows, three above the card and three below, and each
+// gets its own curve to the card. Those curves are measured from where the pills really land
+// (they wrap differently on every screen), so they always join pill to card.
 export function Share() {
     const ref = useRef<HTMLElement>(null);
+    const [curves, setCurves] = useState<{ width: number; height: number; paths: string[] }>({ width: 0, height: 0, paths: [] });
+
+    useLayoutEffect(() => {
+        const stage = ref.current!.querySelector<HTMLElement>("[data-share-stage]")!;
+        const holder = stage.querySelector<HTMLElement>("[data-share-holder]")!;
+        const card = stage.querySelector<HTMLElement>("[data-share-float]")!;
+
+        const measure = () => {
+            if (window.innerWidth >= 1024) return;
+            const box = stage.getBoundingClientRect();
+            // the card's place, from its holder (which never moves) and its own size
+            const holderBox = holder.getBoundingClientRect();
+            const cardLeft = holderBox.left - box.left + (holderBox.width - card.offsetWidth) / 2;
+            const cardTop = holderBox.top - box.top;
+            const cardBottom = cardTop + card.offsetHeight;
+
+            const paths = [...stage.querySelectorAll<HTMLElement>("[data-share-pin]")].map((pill) => {
+                // the pill's centre doesn't move while it pops in (it scales from the middle)
+                const pillBox = pill.getBoundingClientRect();
+                const x = pillBox.left + pillBox.width / 2 - box.left;
+                const y = pillBox.top + pillBox.height / 2 - box.top;
+                const above = pill.dataset.sharePin === "top";
+                const from = y + (above ? 1 : -1) * (pill.offsetHeight / 2 + 2);
+                // each line lands on the card right in line with its pill (kept off the corners),
+                // so lines never cross each other
+                const to = { x: Math.min(Math.max(x, cardLeft + 36), cardLeft + card.offsetWidth - 36), y: above ? cardTop + 14 : cardBottom - 14 };
+                const middle = (from + to.y) / 2;
+                return `M${x} ${from} C ${x} ${middle}, ${to.x} ${middle}, ${to.x} ${to.y}`;
+            });
+            setCurves({ width: box.width, height: box.height, paths });
+        };
+
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(stage);
+        return () => observer.disconnect();
+    }, []);
 
     useGSAP(
         () => {
@@ -44,7 +85,8 @@ export function Share() {
                 gsap.to("[data-share-float]", { y: -12, rotation: 2, duration: 3.2, ease: "sine.inOut", repeat: -1, yoyo: true });
             });
         },
-        { scope: ref },
+        // rebuilt once the phone curves exist, so they're drawn on scroll like the rest
+        { scope: ref, dependencies: [curves.paths.length], revertOnUpdate: true },
     );
 
     return (
@@ -81,7 +123,17 @@ export function Share() {
                 </svg>
 
                 {/* the places: round the card on the stage from laptops up, a wrapped row on smaller screens */}
-                <ul className="flex flex-wrap justify-center gap-2.5 lg:contents">
+                {/* smaller screens: a curve from each place to the card, measured in the effect above */}
+                <svg aria-hidden width={curves.width} height={curves.height} className="pointer-events-none absolute inset-0 lg:hidden">
+                    {curves.paths.map((path, i) => (
+                        <path key={i} data-share-line d={path} fill="none" stroke="#e0408f" strokeWidth="5" strokeLinecap="round" />
+                    ))}
+                </svg>
+
+                {/* smaller screens: the first three places above the card */}
+                <Places places={PLACES.slice(0, 3)} pin="top" />
+
+                <ul className="hidden lg:contents">
                     {PLACES.map(({ label, icon: Icon, x, y }) => (
                         <li
                             key={label}
@@ -100,12 +152,7 @@ export function Share() {
                 </ul>
 
                 {/* the card in the middle: the page's address and its QR code, as if printed */}
-                {/* smaller screens: one line drawing itself down from the row of places to the card */}
-                <svg aria-hidden viewBox="0 0 40 120" className="mx-auto mt-3 block h-24 w-8 lg:hidden">
-                    <path data-share-line d="M20 0 C 38 30, 2 60, 20 90 S 20 110, 20 120" fill="none" stroke="#e0408f" strokeWidth="6" strokeLinecap="round" />
-                </svg>
-
-                <div className="relative mt-3 flex justify-center lg:absolute lg:top-1/2 lg:left-1/2 lg:mt-0 lg:-translate-x-1/2 lg:-translate-y-1/2">
+                <div data-share-holder className="relative mt-20 flex justify-center lg:absolute lg:top-1/2 lg:left-1/2 lg:mt-0 lg:-translate-x-1/2 lg:-translate-y-1/2">
                     <div data-share-card>
                         <div data-share-float className="w-[250px] rotate-[-3deg] rounded-[1.75rem] bg-forest p-5 text-left text-shell shadow-lifted">
                             <div className="flex items-center justify-between">
@@ -120,7 +167,26 @@ export function Share() {
                         </div>
                     </div>
                 </div>
+
+                {/* smaller screens: the other three below it */}
+                <Places places={PLACES.slice(3)} pin="bottom" />
             </div>
         </section>
+    );
+}
+
+// A row of place pills for smaller screens, above or below the card
+function Places({ places, pin }: { places: typeof PLACES; pin: "top" | "bottom" }) {
+    return (
+        <ul className={`relative flex flex-wrap justify-center gap-2.5 lg:hidden ${pin === "bottom" ? "mt-20" : ""}`}>
+            {places.map(({ label, icon: Icon }) => (
+                <li key={label} data-share-place data-share-pin={pin}>
+                    <span className="flex items-center gap-2 rounded-full bg-paper py-2.5 pr-4 pl-3 text-[14px] font-bold whitespace-nowrap shadow-soft">
+                        <Icon size={19} className="text-pink" />
+                        {label}
+                    </span>
+                </li>
+            ))}
+        </ul>
     );
 }

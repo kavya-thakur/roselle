@@ -76,6 +76,15 @@ describe("a visitor enquires", () => {
         expect((await send(page.id, { blockId: "ct" }, "198.51.100.7")).status).toBe(429);
     });
 
+    it("keeps a WhatsApp number when they give one, and refuses one that isn't", async () => {
+        const { page } = await createCreator("lena", { blocks: [contact] });
+        expect((await send(page.id, { blockId: "ct", phone: "+91 98765 43210" })).status).toBe(201);
+        await settle();
+        expect(await prisma.enquiry.findFirstOrThrow()).toMatchObject({ phone: "+91 98765 43210" });
+        expect(emails[0].text).toContain("WhatsApp: +91 98765 43210");
+        expect((await send(page.id, { blockId: "ct", phone: "call me maybe" })).status).toBe(400);
+    });
+
     it("refuses a missing name, a bad email or a date that isn't one", async () => {
         const { page } = await createCreator("lena", { blocks: [services] });
         expect((await send(page.id, { blockId: "sv", serviceId: "s1", name: " " })).status).toBe(400);

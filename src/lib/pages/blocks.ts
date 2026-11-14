@@ -14,6 +14,8 @@ export const BLOCK_TYPES: { type: BlockType; label: string; hint: string }[] = [
     { type: "map", label: "Map", hint: "Where to find you" },
     { type: "tip", label: "Tips", hint: "PayPal, Ko-fi, UPI and more" },
     { type: "services", label: "Services", hint: "What you offer and what it costs" },
+    { type: "picks", label: "Picks", hint: "Products or favourites, two to a row" },
+    { type: "stats", label: "Stats", hint: "Your numbers at a glance" },
     { type: "contact", label: "Contact form", hint: "Let people ask to work with you" },
     { type: "reviews", label: "Reviews", hint: "What clients said, once you approve it" },
 ];
@@ -38,6 +40,14 @@ const STARTERS: Record<BlockType, object> = {
         ],
     },
     reviews: { title: "Kind words" },
+    picks: { title: "My picks" },
+    stats: {
+        items: [
+            { id: "s1", value: "10K", label: "followers" },
+            { id: "s2", value: "40+", label: "brands" },
+            { id: "s3", value: "6 yrs", label: "experience" },
+        ],
+    },
     contact: { title: "Work with me", text: "Commissions, collaborations or just hello. I usually reply within two days.", button: "Send message" },
 };
 

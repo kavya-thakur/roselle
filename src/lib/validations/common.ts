@@ -12,7 +12,7 @@ export const passwordSchema = z
     .max(200, "Must be at most 200 characters");
 
 // Names that are already pages of the site itself (/login is the sign-in page)
-const RESERVED_USERNAMES = ["login", "register", "logout", "editor", "analytics", "settings", "api", "go", "media", "pricing", "about", "help", "terms", "privacy", "admin", "forgot", "reset", "verify", "report", "inbox", "review", "reviews"];
+const RESERVED_USERNAMES = ["login", "register", "logout", "editor", "analytics", "settings", "api", "go", "media", "pricing", "about", "help", "terms", "privacy", "admin", "forgot", "reset", "verify", "report", "inbox", "review", "reviews", "welcome"];
 
 // The address of a page: <our address>/<username>
 export const usernameSchema = z

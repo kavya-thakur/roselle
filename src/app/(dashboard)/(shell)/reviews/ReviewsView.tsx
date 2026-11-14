@@ -5,7 +5,10 @@ import Link from "next/link";
 import { IconStarFilled, IconTrash } from "@tabler/icons-react";
 
 import { Button } from "@/components/Button";
+import { LocalTime } from "@/components/LocalTime";
 import { api } from "@/lib/api/client";
+import { EmptyState } from "@/components/EmptyState";
+import { toast } from "@/components/Toast";
 
 interface Review {
     id: number;
@@ -20,16 +23,15 @@ interface Review {
 export function ReviewsView({ reviews: initial }: { reviews: Review[] }) {
     const [reviews, setReviews] = useState(initial);
     const [busy, setBusy] = useState<number | null>(null);
-    const [error, setError] = useState<string | null>(null);
 
     async function setApproved(id: number, approved: boolean) {
         setBusy(id);
-        setError(null);
         try {
             await api(`/reviews/${id}`, { method: "PATCH", body: { approved } });
             setReviews((current) => current.map((review) => (review.id === id ? { ...review, approved } : review)));
+            toast(approved ? "The review is on your page" : "Review hidden", { detail: approved ? undefined : "It's off your page, and you can show it again any time." });
         } catch (failure) {
-            setError((failure as Error).message);
+            toast.error("That didn't save", (failure as Error).message);
         } finally {
             setBusy(null);
         }
@@ -37,12 +39,12 @@ export function ReviewsView({ reviews: initial }: { reviews: Review[] }) {
 
     async function remove(id: number) {
         if (!window.confirm("Delete this review for good?")) return;
-        setError(null);
         try {
             await api(`/reviews/${id}`, { method: "DELETE" });
             setReviews((current) => current.filter((review) => review.id !== id));
+            toast("Review deleted");
         } catch (failure) {
-            setError((failure as Error).message);
+            toast.error("Couldn't delete it", (failure as Error).message);
         }
     }
 
@@ -51,28 +53,21 @@ export function ReviewsView({ reviews: initial }: { reviews: Review[] }) {
 
     return (
         <main className="flex-1 overflow-y-auto">
-            <div className="mx-auto max-w-3xl px-6 py-12">
+            <div className="mx-auto max-w-3xl px-5 py-8 sm:px-6 sm:py-12">
                 <h1 className="font-display text-5xl">Reviews</h1>
                 <p className="mt-2 text-sm text-muted">
                     From clients you asked after a paid job, so every one is real. Approved reviews show in your page&apos;s <span className="font-semibold text-ink">Reviews</span> block.
                 </p>
 
-                {error && (
-                    <p role="alert" className="mt-6 rounded-xl bg-blush px-3.5 py-2.5 text-sm text-pink">
-                        {error}
-                    </p>
-                )}
-
                 {reviews.length === 0 ? (
-                    <div className="mt-10 rounded-3xl border border-dashed border-line-strong px-6 py-14 text-center">
-                        <p className="font-display text-2xl">No reviews yet</p>
-                        <p className="mx-auto mt-1.5 max-w-sm text-sm text-muted">
+                    <div className="mt-10">
+                        <EmptyState picture="reviews" title="No reviews yet">
                             When a job is done, mark it Paid in your{" "}
                             <Link href="/inbox" className="font-semibold text-pink hover:underline">
                                 Inbox
                             </Link>{" "}
-                            and press Ask for a review.
-                        </p>
+                            and press Ask for a review. Your client gets a one-time link, so every review here is real.
+                        </EmptyState>
                     </div>
                 ) : (
                     <>
@@ -117,7 +112,7 @@ function ReviewCard({ review, onRemove, children }: { review: Review; onRemove: 
                 {[1, 2, 3, 4, 5].map((star) => (
                     <IconStarFilled key={star} size={15} aria-hidden className={star <= review.rating ? "" : "text-line-strong"} />
                 ))}
-                <span className="ml-auto text-xs text-muted">{new Date(review.createdAt).toLocaleDateString(undefined, { dateStyle: "medium" })}</span>
+                <span className="ml-auto text-xs text-muted"><LocalTime iso={review.createdAt} format="date" /></span>
             </div>
             <blockquote className="mt-3 text-[15px] leading-relaxed whitespace-pre-line">{review.text}</blockquote>
             <p className="mt-3 text-sm font-semibold">

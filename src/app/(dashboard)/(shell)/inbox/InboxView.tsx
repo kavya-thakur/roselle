@@ -5,10 +5,16 @@ import Link from "next/link";
 import { IconPencil } from "@tabler/icons-react";
 
 import { api } from "@/lib/api/client";
-import { summarise } from "@/lib/bookings";
+import { STATUS_LABELS, summarise } from "@/lib/bookings";
+import { EmptyState } from "@/components/EmptyState";
+import { Dropdown } from "@/components/Dropdown";
+import { toast } from "@/components/Toast";
 import { currencySymbol, formatMoney, formatNumber, formatPercent } from "@/lib/utils/format";
 import { CURRENCIES, type EnquiryStatus, type EnquiryUpdate } from "@/lib/validations/enquiry";
 import { EnquiryCard, type Enquiry } from "./EnquiryCard";
+
+// each currency with its symbol, so "INR" also reads "₹" (not when the symbol is just the code again)
+const CURRENCY_OPTIONS = CURRENCIES.map((code) => ({ value: code as string, label: currencySymbol(code) === code ? code : `${code}  ${currencySymbol(code)}` }));
 
 // The tabs: "Open" is what still needs a reply or a decision, the default view
 const TABS = [
@@ -22,11 +28,21 @@ const TABS = [
 interface InboxViewProps {
     enquiries: Enquiry[];
     currency: string;
+    creatorName: string;
     monthlyGoal: number | null;
     paymentLink: string;
 }
 
-export function InboxView({ enquiries: initial, currency: initialCurrency, monthlyGoal, paymentLink: initialLink }: InboxViewProps) {
+// what an empty tab says
+const EMPTY_TABS: Record<(typeof TABS)[number]["key"], string> = {
+    open: "All caught up",
+    booked: "Nothing booked right now",
+    paid: "Nothing paid yet",
+    closed: "Nothing turned down",
+    all: "No enquiries yet",
+};
+
+export function InboxView({ enquiries: initial, currency: initialCurrency, creatorName, monthlyGoal, paymentLink: initialLink }: InboxViewProps) {
     const [enquiries, setEnquiries] = useState(initial);
     const [currency, setCurrency] = useState(initialCurrency);
     const [goal, setGoal] = useState(monthlyGoal);
@@ -35,35 +51,46 @@ export function InboxView({ enquiries: initial, currency: initialCurrency, month
     // enquiries changed while on this tab stay in view until the tab changes, so marking one
     // Booked doesn't whisk it away before its amount is filled in
     const [stay, setStay] = useState<number[]>([]);
-    const [error, setError] = useState<string | null>(null);
 
     const summary = summarise(enquiries);
     const money = (amount: number) => formatMoney(amount, currency);
     const shown = enquiries.filter((enquiry) => TABS.find((t) => t.key === tab)!.has(enquiry.status) || stay.includes(enquiry.id));
 
+    // What each change says once it's saved: what happened, and the natural next step
+    const confirmation = (name: string, change: EnquiryUpdate): [string, string?] =>
+        change.status === "BOOKED"
+            ? [`${name} is booked`, "Add what it's worth, then request a deposit if you take one."]
+            : change.status === "PAID"
+              ? [`${name} has paid`, "A good moment to ask for a review."]
+              : change.status
+                ? [`Moved to ${STATUS_LABELS[change.status]}`]
+                : [`Saved: worth ${money(change.amount ?? 0)}`];
+
     // shown straight away, saved behind; put back if the save fails
     async function update(id: number, change: EnquiryUpdate) {
         const before = enquiries;
-        setError(null);
+        const name = enquiries.find((enquiry) => enquiry.id === id)?.name ?? "Enquiry";
         setStay((current) => (current.includes(id) ? current : [...current, id]));
         setEnquiries((current) => current.map((enquiry) => (enquiry.id === id ? { ...enquiry, ...change } : enquiry)));
         try {
             const saved = await api<Pick<Enquiry, "status" | "amount" | "bookedAt">>(`/enquiry/${id}`, { method: "PATCH", body: change });
             setEnquiries((current) => current.map((enquiry) => (enquiry.id === id ? { ...enquiry, ...saved } : enquiry)));
+            const [message, detail] = confirmation(name, change);
+            toast(message, { detail });
         } catch (failure) {
             setEnquiries(before);
-            setError((failure as Error).message);
+            toast.error("That change wasn't saved", (failure as Error).message);
         }
     }
 
     async function remove(id: number) {
         if (!window.confirm("Delete this enquiry? It can't be undone.")) return;
-        setError(null);
         try {
             await api(`/enquiry/${id}`, { method: "DELETE" });
             setEnquiries((current) => current.filter((enquiry) => enquiry.id !== id));
+            toast("Enquiry deleted");
         } catch (failure) {
-            setError((failure as Error).message);
+            toast.error("Couldn't delete it", (failure as Error).message);
         }
     }
 
@@ -72,9 +99,10 @@ export function InboxView({ enquiries: initial, currency: initialCurrency, month
         setCurrency(next);
         try {
             await api("/settings/business", { method: "PUT", body: { currency: next } });
+            toast(`Amounts are now in ${next}`, { detail: "The numbers stay the same; only the currency changes." });
         } catch (failure) {
             setCurrency(before);
-            setError((failure as Error).message);
+            toast.error("Couldn't change the currency", (failure as Error).message);
         }
     }
 
@@ -83,28 +111,25 @@ export function InboxView({ enquiries: initial, currency: initialCurrency, month
         setGoal(next);
         try {
             await api("/settings/business", { method: "PUT", body: { monthlyGoal: next } });
+            toast(next ? `Goal set: ${money(next)} this month` : "Monthly goal removed");
         } catch (failure) {
             setGoal(before);
-            setError((failure as Error).message);
+            toast.error("Couldn't save the goal", (failure as Error).message);
         }
     }
 
     return (
         <main className="flex-1 overflow-y-auto">
-            <div className="mx-auto max-w-4xl px-6 py-12">
+            <div className="mx-auto max-w-4xl px-5 py-8 sm:px-6 sm:py-12">
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
                         <h1 className="font-display text-5xl">Inbox</h1>
                         <p className="mt-2 text-sm text-muted">Enquiries from your page, and the work they turn into.</p>
                     </div>
-                    <label className="flex items-center gap-2 text-sm text-muted">
+                    <div className="flex items-center gap-2 text-sm text-muted">
                         Amounts in
-                        <select value={currency} onChange={(event) => changeCurrency(event.target.value)} className="h-9 rounded-full border border-line bg-paper px-3 text-sm font-semibold text-ink">
-                            {CURRENCIES.map((code) => (
-                                <option key={code}>{code}</option>
-                            ))}
-                        </select>
-                    </label>
+                        <Dropdown look="chip" value={currency} options={CURRENCY_OPTIONS} onChange={changeCurrency} label="Currency for amounts" className="bg-paper shadow-soft" />
+                    </div>
                 </div>
 
                 <div className="mt-8 grid gap-3 sm:grid-cols-3">
@@ -115,13 +140,7 @@ export function InboxView({ enquiries: initial, currency: initialCurrency, month
                     <Tile tone="bg-paper text-ink shadow-soft" label="Open enquiries" value={formatNumber(summary.open)} />
                 </div>
 
-                {error && (
-                    <p role="alert" className="mt-6 rounded-xl bg-blush px-3.5 py-2.5 text-sm text-pink">
-                        {error}
-                    </p>
-                )}
-
-                <nav aria-label="Filter enquiries" className="mt-8 flex flex-wrap gap-1 rounded-full bg-sand p-1 sm:w-fit">
+                <nav aria-label="Filter enquiries" className="mt-8 flex gap-1 overflow-x-auto rounded-full bg-sand p-1 [scrollbar-width:none] sm:w-fit">
                     {TABS.map((t) => (
                         <button
                             key={t.key}
@@ -130,7 +149,7 @@ export function InboxView({ enquiries: initial, currency: initialCurrency, month
                                 setStay([]);
                             }}
                             aria-pressed={tab === t.key}
-                            className={`h-8 rounded-full px-3.5 text-[13px] font-semibold transition ${tab === t.key ? "bg-paper text-ink shadow-soft" : "text-muted hover:text-ink"}`}
+                            className={`h-8 shrink-0 rounded-full px-3.5 text-[13px] font-semibold whitespace-nowrap transition ${tab === t.key ? "bg-paper text-ink shadow-soft" : "text-muted hover:text-ink"}`}
                         >
                             {t.label} <span className="font-normal text-muted tabular-nums">{enquiries.filter((enquiry) => t.has(enquiry.status)).length}</span>
                         </button>
@@ -140,7 +159,7 @@ export function InboxView({ enquiries: initial, currency: initialCurrency, month
                 {enquiries.length === 0 ? (
                     <EmptyInbox />
                 ) : shown.length === 0 ? (
-                    <p className="mt-6 text-sm text-muted">Nothing here.</p>
+                    <EmptyState compact picture="tray" title={EMPTY_TABS[tab]} />
                 ) : (
                     <ul className="mt-5 space-y-3">
                         {shown.map((enquiry) => (
@@ -148,6 +167,7 @@ export function InboxView({ enquiries: initial, currency: initialCurrency, month
                                 key={enquiry.id}
                                 enquiry={enquiry}
                                 currency={currency}
+                                creatorName={creatorName}
                                 paymentLink={paymentLink}
                                 onUpdate={(change) => update(enquiry.id, change)}
                                 onSent={(change, link) => {
@@ -220,15 +240,14 @@ function Goal({ booked, goal, currency, onChange }: { booked: number; goal: numb
 
 function EmptyInbox() {
     return (
-        <div className="mt-6 rounded-3xl border border-dashed border-line-strong px-6 py-14 text-center">
-            <p className="font-display text-2xl">No enquiries yet</p>
-            <p className="mx-auto mt-1.5 max-w-sm text-sm text-muted">
+        <div className="mt-6">
+            <EmptyState picture="inbox" title="No enquiries yet">
                 Add a <span className="font-semibold text-ink">Services</span> or <span className="font-semibold text-ink">Contact form</span> block in the{" "}
                 <Link href="/editor" className="font-semibold text-pink hover:underline">
                     editor
                 </Link>{" "}
-                and people can ask to work with you.
-            </p>
+                and people can ask to work with you. Every message lands here and in your email.
+            </EmptyState>
         </div>
     );
 }

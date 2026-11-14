@@ -29,10 +29,14 @@ export const currencySymbol = (currency: string) =>
 
 // A length of time in hours, as people say it: "40 minutes", "5 hours", "2 days"
 export function formatHours(hours: number) {
-    if (hours < 1) return `${Math.max(1, Math.round(hours * 60))} minutes`;
-    if (hours < 48) return `${Math.round(hours)} hour${Math.round(hours) === 1 ? "" : "s"}`;
-    return `${Math.round(hours / 24)} days`;
+    if (hours < 1) return plural(Math.max(1, Math.round(hours * 60)), "minute");
+    if (hours < 48) return plural(Math.round(hours), "hour");
+    return plural(Math.round(hours / 24), "day");
 }
+
+// a / b as a percentage, or null when it would be meaningless: nothing to divide by, or over 100%
+// (one visitor can send several enquiries, and a blocked tracker can hide a visit)
+export const shareOf = (part: number, whole: number) => (whole > 0 && part <= whole ? formatPercent(part / whole) : null);
 
 // 1, "visitor" -> "1 visitor"; 3, "enquiry", "enquiries" -> "3 enquiries"
 export const plural = (count: number, one: string, many = `${one}s`) => `${formatNumber(count)} ${count === 1 ? one : many}`;

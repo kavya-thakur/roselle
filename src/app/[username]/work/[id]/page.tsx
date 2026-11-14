@@ -11,6 +11,8 @@ import { getPublishedPage } from "@/lib/pages/publish";
 
 // Kept like the page it belongs to: a minute at most, and Publish refreshes both
 export const revalidate = 60;
+// built on the first visit and kept, like the page itself ([username]/page.tsx)
+export const generateStaticParams = async () => [];
 
 // The project's case study, if it has one and visitors can see it
 async function caseStudyOf(params: PageProps<"/[username]/work/[id]">["params"]) {
@@ -73,16 +75,17 @@ export default async function CaseStudyPage({ params }: PageProps<"/[username]/w
 
                 {cover && (
                     <Zoom group="case" src={cover} alt={project.title} className="mt-10">
-                        <img src={cover} alt={project.title} className="w-full rounded-[min(var(--page-radius),1.5rem)] object-cover" />
+                        <img src={cover} alt={project.title} className="max-h-[80svh] w-full rounded-[min(var(--page-radius),1.5rem)] object-cover" />
                     </Zoom>
                 )}
 
                 {project.body && <div className="mt-10 max-w-2xl text-[17px] leading-[1.75] whitespace-pre-line text-pretty opacity-90">{project.body}</div>}
 
                 {images.length > 0 && (
-                    <div className="mt-12 flex flex-col gap-4">
+                    // one column on phones; side by side once there's room, each keeping its own shape
+                    <div className={`mt-12 gap-4 ${images.length > 1 ? "@2xl:columns-2" : ""}`}>
                         {images.map((image, i) => (
-                            <figure key={i}>
+                            <figure key={i} className="mb-4 break-inside-avoid">
                                 <Zoom group="case" src={safeHref(image.src)!} alt={image.alt}>
                                     <img src={safeHref(image.src)} alt={image.alt} loading="lazy" className="w-full rounded-[min(var(--page-radius),1.5rem)]" />
                                 </Zoom>

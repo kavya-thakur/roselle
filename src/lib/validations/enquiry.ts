@@ -9,6 +9,8 @@ export const enquirySchema = z.object({
     serviceId: z.string().max(40).optional(),
     name: z.string().trim().min(1, "Add your name").max(100, "Must be at most 100 characters"),
     email: emailSchema,
+    // optional, so a payment or review request can open their WhatsApp chat; digits, spaces, + - ( )
+    phone: z.union([z.literal(""), z.string().trim().regex(/^\+?[\d\s()-]{7,20}$/, "That doesn't look like a phone number")]).default(""),
     message: z.string().trim().min(2, "Write a message").max(3000, "Must be at most 3000 characters"),
     // the date they'd like it (an <input type="date"> value); empty = not asked or no preference
     wantedOn: z.union([z.literal(""), z.iso.date("Pick a real date")]).default(""),
@@ -33,6 +35,9 @@ export const paymentRequestSchema = z.object({
     amount: z.number().int("Whole amounts only").min(1, "Enter an amount").max(100_000_000),
     link: z.string().trim().min(3, "Add where they pay you").max(500),
     note: z.string().trim().max(500).default(""),
+    // "self": the creator sends it from their own WhatsApp or email, Roselle only records it.
+    // "roselle": Roselle emails it for them.
+    via: z.enum(["self", "roselle"]).default("roselle"),
 });
 
 // A client's review, from the one-time link in their email

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { hasCaseStudy, isLive, musicEmbed, safeHref, targetOf, tipHref, videoEmbed } from "@/lib/pages/links";
+import { destinationOf, hasCaseStudy, isLive, musicEmbed, safeHref, targetOf, tipHref, videoEmbed } from "@/lib/pages/links";
 import { iconFromUrl, newBlock, starterPage, titleFromUrl } from "@/lib/pages/blocks";
 import { FEATURES, lockedFeatures } from "@/lib/plans";
-import { pageSchema, themeSchema } from "@/lib/validations/page";
+import { pageSchema, themeSchema, type Block } from "@/lib/validations/page";
 import { TEMPLATES } from "@/lib/pages/theme";
 import { PATTERN_KEYS, patternBackground } from "@/lib/pages/patterns";
 import { usernameSchema } from "@/lib/validations/common";
@@ -75,10 +75,14 @@ describe("setup checklist", () => {
         const filled = {
             ...page,
             profile: { ...page.profile, avatar: "/media/abc", bio: "Hi", socials: [{ platform: "x" as const, url: "https://x.com/ada" }] },
-            blocks: [1, 2, 3].map((n) => ({ ...newBlock("link"), id: `l${n}`, url: `https://example.com/${n}` })),
-            theme: { ...page.theme, text: "#000000" },
+            blocks: [{ ...newBlock("gallery"), images: [{ src: "/media/photo", alt: "" }] } as Block, newBlock("contact")],
         };
         expect(setupChecklist(filled, true).done).toBe(6);
+    });
+
+    it("doesn't count an empty gallery as showing work", () => {
+        const page = { ...starterPage("ada"), blocks: [newBlock("gallery")] };
+        expect(setupChecklist(page, false).steps.find((step) => step.label === "Show your work")?.done).toBe(false);
     });
 });
 
@@ -178,6 +182,31 @@ describe("portfolio blocks", () => {
 
     it("keeps galleries saved before layouts existed as grids", () => {
         expect(blockSchemaParse({ id: "g", type: "gallery", images: [] })).toMatchObject({ layout: "grid" });
+    });
+
+    it("keeps links saved before second lines and codes existed", () => {
+        expect(blockSchemaParse({ id: "l", type: "link", title: "Shop", url: "https://x.com" })).toMatchObject({ subtitle: "", code: "" });
+    });
+
+    it("keeps Picks to a dozen and Stats to four", () => {
+        const pick = (i: number) => ({ id: `p${i}`, title: "Cup", label: "$40", image: "https://img.com/a.jpg", url: "https://x.com" });
+        expect(blockSchemaParse({ id: "k", type: "picks", items: [pick(1)] })).toMatchObject({ title: "" });
+        expect(() => blockSchemaParse({ id: "k", type: "picks", items: Array.from({ length: 13 }, (_, i) => pick(i)) })).toThrow();
+        expect(() => blockSchemaParse({ id: "s", type: "stats", items: Array.from({ length: 5 }, (_, i) => ({ id: `s${i}`, value: "1", label: "x" })) })).toThrow();
+    });
+
+    it("sends a tap on a pick to that pick's own link, and nowhere unsafe", () => {
+        const picks = blockSchemaParse({
+            id: "k",
+            type: "picks",
+            items: [
+                { id: "a", title: "Cup", label: "", image: "", url: "https://shop.com/cup" },
+                { id: "b", title: "Bad", label: "", image: "", url: "javascript:alert(1)" },
+            ],
+        });
+        expect(destinationOf(picks, "lena", "a")).toBe("https://shop.com/cup");
+        expect(destinationOf(picks, "lena", "b")).toBeUndefined();
+        expect(destinationOf(picks, "lena", "missing")).toBeUndefined();
     });
 
     it("starts a contact block ready to use", () => {
@@ -328,12 +357,116 @@ describe("growing the business", () => {
         expect(hasNews({ ...week, visitors: 0, enquiries: 0, openEnquiries: 0 })).toBe(false);
     });
 
+    it("says times and shares the way people would", async () => {
+        const { formatHours, shareOf } = await import("@/lib/utils/format");
+        expect(formatHours(1 / 60)).toBe("1 minute");
+        expect(formatHours(0.5)).toBe("30 minutes");
+        expect(formatHours(1)).toBe("1 hour");
+        expect(formatHours(72)).toBe("3 days");
+        expect(shareOf(2, 8)).toBe("25%");
+        // more enquiries than counted visitors happens; a share over 100% means nothing
+        expect(shareOf(3, 1)).toBeNull();
+        expect(shareOf(1, 0)).toBeNull();
+    });
+
     it("only takes 1 to 5 stars", async () => {
         const { reviewSchema } = await import("@/lib/validations/enquiry");
         const review = { token: "t", name: "Arjun", rating: 5, text: "Wonderful to work with." };
         expect(reviewSchema.safeParse(review).success).toBe(true);
         expect(reviewSchema.safeParse({ ...review, rating: 0 }).success).toBe(false);
         expect(reviewSchema.safeParse({ ...review, rating: 6 }).success).toBe(false);
+    });
+});
+
+describe("onboarding", () => {
+    it("gives each craft a valid page that starts with its work and a way to hire them", async () => {
+        const { CRAFTS, starterFor } = await import("@/lib/pages/starters");
+        for (const craft of Object.keys(CRAFTS) as (keyof typeof CRAFTS)[]) {
+            const page = starterFor(craft, { name: "Lena", bio: "", template: CRAFTS[craft].looks[0], currency: "USD" });
+            expect(pageSchema.safeParse(page).success).toBe(true);
+            expect(page.blocks.some((block) => block.type === "contact")).toBe(true);
+        }
+        const photographer = starterFor("photographer", { name: "Lena", bio: "", template: "noir", currency: "INR" });
+        expect(photographer.blocks.map((block) => block.type)).toEqual(["gallery", "services", "reviews", "contact", "link"]);
+        expect(photographer.theme.template).toBe("noir");
+    });
+
+    it("only offers looks that exist", async () => {
+        const { CRAFTS } = await import("@/lib/pages/starters");
+        const ids = TEMPLATES.map((template) => template.id);
+        for (const craft of Object.values(CRAFTS)) for (const look of craft.looks) expect(ids).toContain(look);
+    });
+
+    it("prices example services in the creator's currency, rounded to friendly numbers", async () => {
+        const { examplePrice } = await import("@/lib/pages/starters");
+        expect(examplePrice(300, "USD")).toBe("from $300");
+        expect(examplePrice(300, "INR")).toBe("from ₹24,000");
+        expect(examplePrice(2500, "INR")).toBe("from ₹2,00,000");
+        expect(examplePrice(150, "GBP")).toBe("from £120");
+    });
+
+    it("guesses the currency from the time zone first, then the language", async () => {
+        const { guessCurrency } = await import("@/lib/pages/starters");
+        // plenty of people in India browse in US English
+        expect(guessCurrency("Asia/Kolkata", "en-US")).toBe("INR");
+        expect(guessCurrency("Europe/Berlin", "de-DE")).toBe("EUR");
+        expect(guessCurrency("America/Toronto", "en-CA")).toBe("CAD");
+        expect(guessCurrency("UTC", "en")).toBe("USD");
+    });
+
+    it("keeps the starter's empty pieces off the public page until they're filled in", async () => {
+        const { starterFor } = await import("@/lib/pages/starters");
+        const page = starterFor("photographer", { name: "Lena", bio: "", template: "noir", currency: "USD" });
+        const { renderToStaticMarkup } = await import("react-dom/server");
+        const { createElement } = await import("react");
+        const { PageRenderer } = await import("@/components/PageRenderer");
+        const html = renderToStaticMarkup(createElement(PageRenderer, { page, mode: "live", pageId: 1, username: "lena" }));
+        expect(html).not.toContain("Add images to the gallery");
+        expect(html).not.toContain("Instagram");
+        expect(html).toContain("Portrait session");
+    });
+});
+
+describe("messages the creator sends", () => {
+    it("asks for a payment in the creator's own words, with how to pay", async () => {
+        const { paymentMessage } = await import("@/lib/messages");
+        const { subject, text } = paymentMessage({
+            creator: "Kavya Thakur",
+            client: "Aarav Mehta",
+            amount: 30000,
+            currency: "INR",
+            service: "Brand campaign",
+            note: "50% deposit to hold the date.",
+            target: { kind: "upi", id: "kavya@okaxis" },
+        });
+        expect(subject).toBe("Payment for Brand campaign: ₹30,000");
+        expect(text).toBe(
+            "Hi Aarav,\n\nThank you for booking me for Brand campaign. Here are the details for the payment of ₹30,000:\n\n50% deposit to hold the date.\n\nPay by UPI to: kavya@okaxis\n(open any UPI app, choose \"Pay to UPI ID\" and enter it)\n\nThank you!\nKavya",
+        );
+    });
+
+    it("writes Roselle's version in the third person, for when Roselle emails it", async () => {
+        const { paymentMessage } = await import("@/lib/messages");
+        const { text } = paymentMessage({ creator: "Kavya Thakur", client: "Aarav", amount: 100, currency: "USD", service: null, note: "", target: { kind: "url", href: "https://buy.stripe.com/x" } }, "roselle");
+        expect(text).toContain("Kavya Thakur has asked for $100.");
+        expect(text).toContain("Pay here: https://buy.stripe.com/x");
+    });
+
+    it("asks for a review with the one-time link", async () => {
+        const { reviewMessage } = await import("@/lib/messages");
+        const { text } = reviewMessage({ creator: "Kavya Thakur", client: "Meera Iyer", service: "Editorial shoot", link: "https://x/review/abc", days: 60 });
+        expect(text).toContain("Hi Meera,");
+        expect(text).toContain("Thank you for working with me on Editorial shoot!");
+        expect(text).toContain("https://x/review/abc");
+    });
+
+    it("opens the client's WhatsApp chat only when the number has its country code", async () => {
+        const { whatsappLink, emailLink } = await import("@/lib/messages");
+        expect(whatsappLink("Hi there", "+91 98765 43210")).toBe("https://wa.me/919876543210?text=Hi%20there");
+        // no country code: WhatsApp asks which chat, rather than guessing a wrong number
+        expect(whatsappLink("Hi", "98765 43210")).toBe("https://wa.me/?text=Hi");
+        expect(whatsappLink("Hi", null)).toBe("https://wa.me/?text=Hi");
+        expect(emailLink("a@b.com", { subject: "Pay & go", text: "Line 1\nLine 2" })).toBe("mailto:a@b.com?subject=Pay%20%26%20go&body=Line%201%0ALine%202");
     });
 });
 

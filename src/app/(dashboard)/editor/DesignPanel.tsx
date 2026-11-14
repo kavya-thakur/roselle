@@ -1,20 +1,42 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- the avatar can come from any host */
 
-import { useState, type ReactNode } from "react";
-import { IconArrowLeft, IconArrowsShuffle, IconChevronRight, IconPhoto } from "@tabler/icons-react";
+import { Dropdown } from "@/components/Dropdown";
+import { useState, type ReactNode, type Dispatch, type SetStateAction } from "react";
+import { IconArrowLeft, IconArrowsShuffle, IconChevronRight, IconColorPicker, IconPhoto } from "@tabler/icons-react";
 
 import { FONTS, TEMPLATES } from "@/lib/pages/theme";
 import { PATTERN_KEYS, PATTERN_LABELS, patternBackground } from "@/lib/pages/patterns";
 import type { PageDoc, Theme } from "@/lib/validations/page";
 import { smallInputClass } from "@/components/Field";
+import { toast } from "@/components/Toast";
+import { dominantColour, themeFromColour } from "@/lib/pages/colour";
+import { safeHref } from "@/lib/pages/links";
 import { ColorPill, FieldRow, ImageInput, Label, Segmented, StyleTiles, Toggle } from "./controls";
 
 type FontKey = keyof typeof FONTS;
 type Part = "theme" | "wallpaper" | "buttons" | "text" | "seo";
 
 const FONT_OPTIONS = Object.entries(FONTS) as [FontKey, (typeof FONTS)[FontKey]][];
+// a script face is for a name or a heading; a paragraph of it is hard to read
+const BODY_FONTS = FONT_OPTIONS.filter(([, font]) => !("script" in font));
 const BACKGROUND_NAMES = { solid: "Solid colour", gradient: "Gradient", glow: "Glow", image: "Photo", pattern: "Pattern" };
 const BUTTON_NAMES = { pop: "Sticker", solid: "Solid", outline: "Outline", soft: "Soft", glass: "Glass" };
+
+// The main colour of the lower middle of a photo: where, in a poster header, the picture melts
+// into the page. Read from a small copy drawn on a canvas.
+async function photoColour(src: string) {
+    const image = new Image();
+    // the photo comes from another address; without this the canvas refuses to give its pixels
+    image.crossOrigin = "anonymous";
+    image.src = src;
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 48;
+    const context = canvas.getContext("2d")!;
+    context.drawImage(image, 0, 0, 48, 48);
+    return dominantColour(context.getImageData(8, 26, 32, 18).data);
+}
 
 // A template's background as CSS, for its tile in the picker
 function swatchOf(theme: Theme) {
@@ -27,12 +49,14 @@ function swatchOf(theme: Theme) {
 
 // How the page looks: a short list of parts, each opening its own small panel. Seeing
 // "Buttons · Sticker" at a glance beats scrolling through every control at once.
-export function DesignPanel({ page, onChange: onPageChange }: { page: PageDoc; onChange: (page: PageDoc) => void }) {
+export function DesignPanel({ page, onChange: onPageChange }: { page: PageDoc; onChange: Dispatch<SetStateAction<PageDoc>> }) {
     const [part, setPart] = useState<Part | null>(null);
     const { theme, seo, profile } = page;
-    const onChange = (next: Theme) => onPageChange({ ...page, theme: next });
-    const set = <K extends keyof Theme>(key: K, value: Theme[K]) => onChange({ ...theme, [key]: value });
-    const setSeo = (patch: Partial<PageDoc["seo"]>) => onPageChange({ ...page, seo: { ...seo, ...patch } });
+    // applied to the latest page (see HeaderPanel), so a background photo still uploading can't undo other changes
+    const onChange = (next: Theme) => onPageChange((current) => ({ ...current, theme: next }));
+    const set = <K extends keyof Theme>(key: K, value: Theme[K]) => onPageChange((current) => ({ ...current, theme: { ...current.theme, [key]: value } }));
+    const setBackground = (patch: Partial<Theme["background"]>) => onPageChange((current) => ({ ...current, theme: { ...current.theme, background: { ...current.theme.background, ...patch } } }));
+    const setSeo = (patch: Partial<PageDoc["seo"]>) => onPageChange((current) => ({ ...current, seo: { ...current.seo, ...patch } }));
     const templateName = TEMPLATES.find((template) => JSON.stringify(template.theme) === JSON.stringify(theme))?.name ?? "Custom";
 
     if (part === null) {
@@ -88,6 +112,35 @@ export function DesignPanel({ page, onChange: onPageChange }: { page: PageDoc; o
                 )}
             </div>
 
+            {part === "theme" && safeHref(profile.avatar) && (
+                // the page in the colour of the creator's own photo, keeping their fonts and layout
+                <button
+                    onClick={async () => {
+                        try {
+                            const colours = themeFromColour(await photoColour(profile.avatar));
+                            onPageChange((current) => {
+                                const { theme } = current;
+                                return {
+                                    ...current,
+                                    theme: { ...theme, ...colours, background: { ...theme.background, ...colours.background }, button: { ...theme.button, ...colours.button } },
+                                };
+                            });
+                            toast("Matched to your photo", { detail: "Change any colour under Wallpaper, Buttons or Text." });
+                        } catch {
+                            toast.error("Couldn't read the colours of that photo", "Try uploading it again.");
+                        }
+                    }}
+                    className="mb-5 flex w-full items-center gap-3 rounded-2xl border border-line p-2.5 text-left transition hover:border-ink"
+                >
+                    <img src={safeHref(profile.avatar)} alt="" className="size-11 rounded-xl object-cover" />
+                    <span className="flex-1">
+                        <span className="block text-[15px] font-bold">Match my photo</span>
+                        <span className="block text-xs text-muted">Your page in the colours of your picture</span>
+                    </span>
+                    <IconColorPicker size={19} className="mr-1.5 text-muted" />
+                </button>
+            )}
+
             {part === "theme" && (
                 <div className="grid grid-cols-3 gap-3">
                     {TEMPLATES.map((template) => {
@@ -126,7 +179,7 @@ export function DesignPanel({ page, onChange: onPageChange }: { page: PageDoc; o
                     <StyleTiles
                         label="Wallpaper style"
                         value={theme.background.kind}
-                        onChange={(kind) => set("background", { ...theme.background, kind })}
+                        onChange={(kind) => setBackground({ kind })}
                         options={[
                             { value: "solid", label: "Fill", preview: <span className="size-full" style={{ background: theme.background.colors[0] }} /> },
                             { value: "gradient", label: "Gradient", preview: <span className="size-full" style={{ background: `linear-gradient(160deg, ${theme.background.colors.join(", ")})` }} /> },
@@ -142,7 +195,7 @@ export function DesignPanel({ page, onChange: onPageChange }: { page: PageDoc; o
                             <StyleTiles
                                 label="Pattern"
                                 value={theme.background.pattern}
-                                onChange={(pattern) => set("background", { ...theme.background, pattern })}
+                                onChange={(pattern) => setBackground({ pattern })}
                                 options={PATTERN_KEYS.map((key) => ({
                                     value: key,
                                     label: PATTERN_LABELS[key],
@@ -155,7 +208,7 @@ export function DesignPanel({ page, onChange: onPageChange }: { page: PageDoc; o
                     <div className="mt-6 divide-y divide-line border-t border-line">
                         {theme.background.kind === "image" && (
                             <FieldRow label="Photo" htmlFor="background-image" hint="Your colour is laid over it, so text stays readable">
-                                <ImageInput id="background-image" value={theme.background.image} onChange={(image) => set("background", { ...theme.background, image })} />
+                                <ImageInput id="background-image" value={theme.background.image} onChange={(image) => setBackground({ image })} />
                             </FieldRow>
                         )}
                         {/* solid and photo backgrounds use one colour, patterns two (the page and the print), the others three */}
@@ -170,7 +223,7 @@ export function DesignPanel({ page, onChange: onPageChange }: { page: PageDoc; o
                                             colors[i] = value;
                                             // one-colour backgrounds keep all three the same, so a switch to a gradient starts calm
                                             const single = theme.background.kind === "solid" || theme.background.kind === "image";
-                                            set("background", { ...theme.background, colors: single ? [value, value, value] : colors });
+                                            setBackground({ colors: single ? [value, value, value] : colors });
                                         }}
                                     />
                                 </div>
@@ -185,7 +238,7 @@ export function DesignPanel({ page, onChange: onPageChange }: { page: PageDoc; o
                                     max={360}
                                     step={5}
                                     value={theme.background.angle}
-                                    onChange={(event) => set("background", { ...theme.background, angle: Number(event.target.value) })}
+                                    onChange={(event) => setBackground({ angle: Number(event.target.value) })}
                                     className="mt-3 w-full accent-ink"
                                 />
                             </FieldRow>
@@ -224,7 +277,19 @@ export function DesignPanel({ page, onChange: onPageChange }: { page: PageDoc; o
                 <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-2">
                         <FontSelect label="Headings" value={theme.font.heading} onChange={(heading) => set("font", { ...theme.font, heading })} />
-                        <FontSelect label="Text" value={theme.font.body} onChange={(body) => set("font", { ...theme.font, body })} />
+                        <FontSelect label="Text" value={theme.font.body} onChange={(body) => set("font", { ...theme.font, body })} options={BODY_FONTS} />
+                    </div>
+                    <div>
+                        <Label>Section titles</Label>
+                        <Segmented
+                            label="Section titles"
+                            value={theme.layout.titles}
+                            options={[
+                                { value: "display", label: "Big, in the heading font" },
+                                { value: "label", label: "Small labels" },
+                            ]}
+                            onChange={(titles) => set("layout", { ...theme.layout, titles })}
+                        />
                     </div>
                     <div className="flex gap-2">
                         <ColorInput label="Text" value={theme.text} onChange={(text) => set("text", text)} />
@@ -285,24 +350,18 @@ function ColorInput({ label, value, onChange }: { label: string; value: string; 
     );
 }
 
-function FontSelect({ label, value, onChange }: { label: string; value: FontKey; onChange: (value: FontKey) => void }) {
+function FontSelect({ label, value, onChange, options = FONT_OPTIONS }: { label: string; value: FontKey; onChange: (value: FontKey) => void; options?: typeof FONT_OPTIONS }) {
     const id = `font-${label}`;
     return (
         <div>
             <Label htmlFor={id}>{label}</Label>
-            <select
+            {/* every font previewed in its own typeface */}
+            <Dropdown
                 id={id}
                 value={value}
-                onChange={(event) => onChange(event.target.value as FontKey)}
-                className="h-10 w-full rounded-xl border border-line bg-paper px-2.5 text-sm outline-none focus:border-pink"
-                style={{ fontFamily: FONTS[value].css }}
-            >
-                {FONT_OPTIONS.map(([key, font]) => (
-                    <option key={key} value={key}>
-                        {font.label}
-                    </option>
-                ))}
-            </select>
+                options={options.map(([key, font]) => ({ value: key, label: font.label, style: { fontFamily: font.css } }))}
+                onChange={(key) => onChange(key as FontKey)}
+            />
         </div>
     );
 }

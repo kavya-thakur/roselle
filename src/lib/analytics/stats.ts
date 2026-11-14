@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import { averageReplyHours, serviceStats } from "@/lib/bookings";
 
 export const RANGES = [7, 30, 90] as const;
@@ -25,12 +26,15 @@ async function totals(pageId: number, from: Date, to?: Date) {
         prisma.event.count({ where: { pageId, type: "CLICK", createdAt } }),
         // ponytail: visitor ids change daily (see track.ts), so over a range this counts
         // visitor-days; someone who came Monday and Friday counts twice
-        prisma.event.findMany({ where: { pageId, type: "VIEW", createdAt }, distinct: ["visitorId"], select: { visitorId: true } }),
+        // counted by the database: Prisma's `distinct` would load every view into memory first
+        prisma.$queryRaw<[{ count: bigint }]>`
+            SELECT count(DISTINCT "visitorId") AS count FROM "Event"
+            WHERE "pageId" = ${pageId} AND type = 'VIEW' AND "createdAt" >= ${from} ${to ? Prisma.sql`AND "createdAt" < ${to}` : Prisma.empty}`,
         prisma.enquiry.count({ where: { pageId, createdAt } }),
         prisma.enquiry.aggregate({ where: { pageId, createdAt, status: WON }, _count: true, _sum: { amount: true } }),
     ]);
 
-    return { views, clicks, visitors: visitors.length, enquiries, booked: won._count, bookedValue: won._sum.amount ?? 0 };
+    return { views, clicks, visitors: Number(visitors[0].count), enquiries, booked: won._count, bookedValue: won._sum.amount ?? 0 };
 }
 
 // Everything the analytics screen shows for one page over the last `days` days,

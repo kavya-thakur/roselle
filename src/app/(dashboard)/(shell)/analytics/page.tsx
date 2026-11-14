@@ -7,9 +7,10 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { prisma } from "@/lib/db/prisma";
 import { pageStats, RANGES, type PageStats, type Range } from "@/lib/analytics/stats";
 import { pageSchema, type Block } from "@/lib/validations/page";
-import { formatHours, formatMoney, formatNumber, formatPercent } from "@/lib/utils/format";
+import { formatHours, formatMoney, formatNumber, formatPercent, shareOf } from "@/lib/utils/format";
 import { can } from "@/lib/plans";
 import { TrendChart } from "./TrendChart";
+import { EmptyState } from "@/components/EmptyState";
 import { SITE_HOST } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -17,13 +18,14 @@ export const metadata: Metadata = {
 };
 
 // the blocks whose taps go through the click counter
-const CLICKABLE: Block["type"][] = ["link", "image", "project", "tip"];
+const CLICKABLE: Block["type"][] = ["link", "image", "project", "tip", "picks"];
 
 const DEVICE_LABELS: Record<string, string> = { mobile: "Phone", tablet: "Tablet", desktop: "Computer" };
 
 // What a link shows up as in "Top links"
 function nameOf(block: Block) {
     if (block.type === "link" || block.type === "project" || block.type === "tip") return block.title || "Untitled";
+    if (block.type === "picks") return block.title || "Picks";
     if (block.type === "image") return block.alt || block.caption || "Image";
     return "Untitled";
 }
@@ -65,7 +67,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/analyt
 
     return (
         <main className="flex-1 overflow-y-auto">
-            <div className="mx-auto max-w-6xl px-6 py-10 sm:py-12">
+            <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6 sm:py-12">
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
                         <h1 className="font-display text-5xl">Analytics</h1>
@@ -106,7 +108,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/analyt
                 <section className="mt-3 rounded-3xl bg-paper p-5 shadow-soft sm:p-6">
                     <h2 className="sr-only">Over time</h2>
                     {current.views === 0 && current.clicks === 0 ? (
-                        <EmptyState username={user.page.username} />
+                        <Quiet username={user.page.username} />
                     ) : (
                         <TrendChart points={stats.daily} />
                     )}
@@ -165,8 +167,8 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/analyt
 function Funnel({ current, replyHours, currency }: { current: PageStats["current"]; replyHours: number | null; currency: string }) {
     const steps = [
         { label: "Visitors", value: formatNumber(current.visitors), note: "came to your page" },
-        { label: "Enquiries", value: formatNumber(current.enquiries), note: current.visitors ? `${formatPercent(current.enquiries / current.visitors)} of visitors asked` : "–" },
-        { label: "Booked", value: formatNumber(current.booked), note: current.enquiries ? `${formatPercent(current.booked / current.enquiries)} of enquiries` : "–" },
+        { label: "Enquiries", value: formatNumber(current.enquiries), note: shareOf(current.enquiries, current.visitors) ? `${shareOf(current.enquiries, current.visitors)} of visitors asked` : "–" },
+        { label: "Booked", value: formatNumber(current.booked), note: shareOf(current.booked, current.enquiries) ? `${shareOf(current.booked, current.enquiries)} of enquiries` : "–" },
         { label: "Worth", value: formatMoney(current.bookedValue, currency), note: "from those bookings" },
     ];
 
@@ -331,17 +333,10 @@ function Breakdown({ title, rows, total, empty }: { title: string; rows: { label
     );
 }
 
-function EmptyState({ username }: { username: string }) {
+function Quiet({ username }: { username: string }) {
     return (
-        <div className="flex flex-col items-center px-6 py-16 text-center">
-            {/* a still, sample line: what this space will look like */}
-            <svg width="180" height="48" viewBox="0 0 180 48" aria-hidden className="text-pink/40">
-                <path d="M2 40 C 30 38, 40 20, 62 26 S 100 8, 122 16 S 160 4, 178 6" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="4 5" strokeLinecap="round" />
-            </svg>
-            <p className="mt-5 font-display text-3xl">Quiet, for now</p>
-            <p className="mt-2 max-w-sm text-sm text-muted">
-                Put <span className="font-semibold text-ink">{SITE_HOST}/{username}</span> in your bio and visits will appear here, day by day.
-            </p>
-        </div>
+        <EmptyState compact picture="chart" title="Quiet, for now">
+            Put <span className="font-semibold text-ink">{SITE_HOST}/{username}</span> in your bio and visits will appear here, day by day.
+        </EmptyState>
     );
 }

@@ -21,6 +21,7 @@ export const getCurrentUser = cache(async () => {
                     id: true,
                     email: true,
                     plan: true,
+                    onboardedAt: true,
                     currency: true,
                     monthlyGoal: true,
                     weeklyEmail: true,

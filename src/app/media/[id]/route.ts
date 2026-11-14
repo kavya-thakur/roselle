@@ -14,7 +14,9 @@ export async function GET(_req: NextRequest, { params }: RouteContext<"/media/[i
     return new Response(media.data, {
         headers: {
             "Content-Type": media.mimeType,
-            "Cache-Control": "public, max-age=31536000, immutable",
+            // s-maxage: the host's CDN keeps it too, so after the first visitor the picture
+            // comes from the CDN and the database isn't asked again
+            "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable",
             // the browser must treat it as the image type above, never guess it's a page
             "X-Content-Type-Options": "nosniff",
         },

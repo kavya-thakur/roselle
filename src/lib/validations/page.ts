@@ -43,8 +43,12 @@ export const blockSchema = z.discriminatedUnion("type", [
         ...blockBase,
         type: z.literal("link"),
         title: text(120),
+        // a second, smaller line under the title: "30 minutes, free" or "New episode every Friday"
+        subtitle: text(120),
         url,
         thumbnail: url,
+        // a discount code to go with the link, shown beside it with a button to copy it
+        code: text(40),
         // shown when there's no thumbnail; "" = none. Links saved before icons existed have none
         icon: z.enum(LINK_ICONS).or(z.literal("")).default(""),
         featured: z.boolean().default(false),
@@ -87,13 +91,31 @@ export const blockSchema = z.discriminatedUnion("type", [
         type: z.literal("services"),
         title: text(120),
         items: z
-            .array(z.object({ id: z.string().min(1).max(40), name: text(80), price: text(40), description: text(400) }))
+            // featured: shown as "Most booked", the one to steer people towards
+            .array(z.object({ id: z.string().min(1).max(40), name: text(80), price: text(40), description: text(400), featured: z.boolean().default(false) }))
             .max(12)
             .default([]),
     }),
     // What clients said: the approved reviews (they live in the Review table, not in the page,
     // because clients write them, not the creator)
     z.object({ ...blockBase, type: z.literal("reviews"), title: text(120) }),
+    // A grid of things the creator recommends or sells, two to a row: a picture, a name, a price
+    // or a note, each linking out (a shop, an affiliate link). Each tile's taps are counted.
+    z.object({
+        ...blockBase,
+        type: z.literal("picks"),
+        title: text(120),
+        // two to a row, or one row that scrolls sideways
+        layout: z.enum(["grid", "carousel"]).default("grid"),
+        items: z.array(z.object({ id: z.string().min(1).max(40), title: text(80), label: text(40), image: url, url })).max(12).default([]),
+    }),
+    // A row of numbers that tell the story at a glance: "120K followers · 40 brands · 6 years"
+    z.object({
+        ...blockBase,
+        type: z.literal("stats"),
+        title: text(120),
+        items: z.array(z.object({ id: z.string().min(1).max(40), value: text(20), label: text(40) })).max(4).default([]),
+    }),
     // "Work with me": a short form visitors fill in; it lands in the creator's inbox and email
     z.object({
         ...blockBase,
@@ -140,13 +162,15 @@ export const themeSchema = z.object({
         shadow: z.boolean(),
     }),
     layout: z.object({
-        // "left" also turns into two columns on wide screens: profile beside the blocks
+        // the header's text set to the left instead of centred
         align: z.enum(["center", "left"]),
         avatar: z.enum(["circle", "arch", "hidden"]),
         // how the top of the page is set: the photo in a small frame ("classic"), the photo filling
         // the top of the screen with the name across it like a poster ("poster"), or a wide cover
         // picture with the photo overlapping it ("banner"). Pages saved before this was added are classic.
         header: z.enum(["classic", "poster", "banner"]).default("classic"),
+        // section titles big in the heading font ("display"), or small, bold and centred ("label")
+        titles: z.enum(["display", "label"]).default("display"),
     }),
 });
 

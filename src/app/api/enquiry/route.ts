@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     try {
         const parsed = await parseBody(req, enquirySchema);
         if (!parsed.success) return parsed.response;
-        const { pageId, blockId, serviceId, name, email, message, wantedOn, referrer, utmSource, website } = parsed.data;
+        const { pageId, blockId, serviceId, name, email, phone, message, wantedOn, referrer, utmSource, website } = parsed.data;
 
         // the hidden trap field was filled in: a robot. Answer as if it worked, so it doesn't learn.
         if (website) return NextResponse.json({ ok: true }, { status: 201 });
@@ -38,10 +38,10 @@ export async function POST(req: NextRequest) {
         }
 
         await prisma.enquiry.create({
-            data: { pageId, name, email, message, service: service?.name || null, wantedOn: wantedOn || null, source: sourceOf(referrer, utmSource) },
+            data: { pageId, name, email, phone: phone || null, message, service: service?.name || null, wantedOn: wantedOn || null, source: sourceOf(referrer, utmSource) },
         });
 
-        const about = [service && `About: ${service.name}${service.price ? ` (${service.price})` : ""}`, wantedOn && `For: ${wantedOn}`].filter(Boolean).join("\n");
+        const about = [service && `About: ${service.name}${service.price ? ` (${service.price})` : ""}`, wantedOn && `For: ${wantedOn}`, phone && `WhatsApp: ${phone}`].filter(Boolean).join("\n");
 
         after(() =>
             sendEmail({

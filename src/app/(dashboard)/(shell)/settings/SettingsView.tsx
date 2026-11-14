@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/Button";
 import { Field, inputClass } from "@/components/Field";
 import { api } from "@/lib/api/client";
+import { toast } from "@/components/Toast";
 import type { Plan } from "@/lib/plans";
 import { deleteAccountSchema, passwordChangeSchema, usernameChangeSchema, type PasswordFormValues, type UsernameFormValues } from "@/lib/validations/settings";
 import { SITE_HOST } from "@/lib/site";
@@ -27,7 +28,6 @@ const notice = (ok: boolean) => `rounded-xl px-3.5 py-2.5 text-sm ${ok ? "bg-suc
 
 export function SettingsView({ email, username, plan, weeklyEmail, emailVerified, justVerified }: SettingsViewProps) {
     const router = useRouter();
-    const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
     const {
         register,
@@ -42,20 +42,19 @@ export function SettingsView({ email, username, plan, weeklyEmail, emailVerified
     const changed = useWatch({ control, name: "username" }).trim().toLowerCase() !== username;
 
     async function onSubmit(values: UsernameFormValues) {
-        setResult(null);
         try {
             await api("/settings/username", { method: "PUT", body: values });
-            setResult({ ok: true, message: `Your page now lives at ${SITE_HOST}/${values.username}` });
+            toast("Address changed", { detail: `Your page now lives at ${SITE_HOST}/${values.username}` });
             // the header's "View page" link reads the username on the server
             router.refresh();
         } catch (error) {
-            setResult({ ok: false, message: (error as Error).message });
+            toast.error("Couldn't change your address", (error as Error).message);
         }
     }
 
     return (
         <main className="flex-1 overflow-y-auto">
-            <div className="mx-auto max-w-2xl px-6 py-12">
+            <div className="mx-auto max-w-2xl px-5 py-8 sm:px-6 sm:py-12">
                 <h1 className="font-display text-5xl">Settings</h1>
 
                 <section className="mt-10 rounded-2xl border border-line bg-paper p-6 shadow-soft">
@@ -70,11 +69,6 @@ export function SettingsView({ email, username, plan, weeklyEmail, emailVerified
                             </div>
                         </Field>
 
-                        {result && (
-                            <p role="status" className={`rounded-xl px-3.5 py-2.5 text-sm ${result.ok ? "bg-success/10 text-success" : "bg-blush text-pink"}`}>
-                                {result.message}
-                            </p>
-                        )}
 
                         <Button type="submit" busy={isSubmitting} disabled={!changed}>
                             Change address
@@ -93,16 +87,15 @@ export function SettingsView({ email, username, plan, weeklyEmail, emailVerified
 
 // Who's signed in, whether that address is confirmed, and which plan they're on
 function AccountSection({ email, plan, emailVerified, justVerified }: Omit<SettingsViewProps, "username" | "weeklyEmail">) {
-    const [sent, setSent] = useState<{ ok: boolean; message: string } | null>(null);
     const [sending, setSending] = useState(false);
 
     async function resend() {
         setSending(true);
         try {
             await api("/auth/verify", { method: "POST" });
-            setSent({ ok: true, message: `Sent. Check ${email} (and the spam folder).` });
+            toast("Confirmation email sent", { detail: `Check ${email}, and the spam folder.` });
         } catch (error) {
-            setSent({ ok: false, message: (error as Error).message });
+            toast.error("Couldn't send it", (error as Error).message);
         } finally {
             setSending(false);
         }
@@ -133,17 +126,11 @@ function AccountSection({ email, plan, emailVerified, justVerified }: Omit<Setti
                     </Button>
                 </div>
             )}
-            {sent && (
-                <p role="status" className={`mt-3 ${notice(sent.ok)}`}>
-                    {sent.message}
-                </p>
-            )}
         </section>
     );
 }
 
 function PasswordSection() {
-    const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
     const {
         register,
         handleSubmit,
@@ -153,16 +140,15 @@ function PasswordSection() {
     } = useForm<PasswordFormValues>({ resolver: zodResolver(passwordChangeSchema), defaultValues: { current: "", password: "" } });
 
     async function onSubmit(values: PasswordFormValues) {
-        setResult(null);
         try {
             await api("/settings/password", { method: "PUT", body: values });
             reset();
-            setResult({ ok: true, message: "Password changed. Any other devices have been signed out." });
+            toast("Password changed", { detail: "Any other devices have been signed out." });
         } catch (error) {
             const message = (error as Error).message;
             // a wrong current password belongs under that field
             if (message.includes("current password")) setError("current", { message });
-            else setResult({ ok: false, message });
+            else toast.error("Couldn't change your password", message);
         }
     }
 
@@ -176,11 +162,6 @@ function PasswordSection() {
                 <Field label="New password" htmlFor="new-password" error={errors.password?.message}>
                     <input id="new-password" type="password" autoComplete="new-password" placeholder="At least 8 characters" aria-invalid={!!errors.password} {...register("password")} className={inputClass} />
                 </Field>
-                {result && (
-                    <p role="status" className={notice(result.ok)}>
-                        {result.message}
-                    </p>
-                )}
                 <Button type="submit" busy={isSubmitting}>
                     Change password
                 </Button>
@@ -251,17 +232,15 @@ function DeleteSection() {
 // The emails Roselle sends on its own. Enquiries, reviews and account emails always come.
 function EmailsSection({ weeklyEmail }: { weeklyEmail: boolean }) {
     const [on, setOn] = useState(weeklyEmail);
-    const [error, setError] = useState<string | null>(null);
-
     async function toggle() {
         const next = !on;
         setOn(next);
-        setError(null);
         try {
             await api("/settings/business", { method: "PUT", body: { weeklyEmail: next } });
+            toast(next ? "Weekly email on" : "Weekly email off", { detail: next ? "It comes on Mondays, when your page had a week worth telling." : undefined });
         } catch (failure) {
             setOn(!next);
-            setError((failure as Error).message);
+            toast.error("Couldn't change that", (failure as Error).message);
         }
     }
 
@@ -284,7 +263,6 @@ function EmailsSection({ weeklyEmail }: { weeklyEmail: boolean }) {
                 </button>
             </div>
             <p className="mt-3 text-sm text-muted">New enquiries, a reminder when someone has waited a day, and new reviews always reach you.</p>
-            {error && <p className="mt-2 text-sm text-danger">{error}</p>}
         </section>
     );
 }
