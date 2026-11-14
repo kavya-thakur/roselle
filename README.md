@@ -11,7 +11,7 @@ enquiries, bookings, payment requests, verified reviews and analytics that end i
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=fff)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Prisma_7-336791?logo=postgresql&logoColor=fff)
 ![Tailwind CSS 4](https://img.shields.io/badge/Tailwind_CSS-4-38bdf8?logo=tailwindcss&logoColor=fff)
-![Tests](https://img.shields.io/badge/tests-116_passing-0b4d2c)
+![Tests](https://img.shields.io/badge/tests-121_passing-0b4d2c)
 ![Hosting](https://img.shields.io/badge/hosting-%240%2Fmonth-e0408f)
 
 ![Roselle landing page](.github/screenshots/landing.jpg)
@@ -52,8 +52,9 @@ reviews, a contact form, music players, maps, videos and tips.
 
 ## The editor
 
-A live preview beside every change, drag to reorder, hide or schedule any block, and autosave.
-Nothing goes live until **Publish**.
+A live preview beside every change, drag to reorder, hide or schedule any block, undo and redo
+(⌘Z / ⇧⌘Z), and autosave. Nothing goes live until **Publish**, and *Discard changes* puts the draft
+back to the live page.
 
 | Content | Design |
 | --- | --- |
@@ -122,7 +123,7 @@ A daily job sends a morning reminder when an enquiry has waited a day, and a Mon
 </td><td valign="top">
 
 **Quality**
-- 116 tests, the API ones against a real Postgres database
+- 121 tests, the API ones against a real Postgres database
 - Responsive from a phone to a wide desktop
 - Toasts, skeleton loaders, empty states and error pages throughout
 - Public pages cached and served as files
@@ -256,7 +257,7 @@ when the code they guard breaks.
 ```bash
 npm test
 #  Test Files  7 passed (7)
-#       Tests  116 passed (116)
+#       Tests  121 passed (121)
 ```
 
 ## Deploying for $0
