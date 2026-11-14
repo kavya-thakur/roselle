@@ -18,6 +18,10 @@ export default async function EditorPage() {
     if (!user) {
         redirect("/login");
     }
+    // a brand-new account answers the first-run questions before the editor
+    if (!user.onboardedAt) {
+        redirect("/welcome");
+    }
 
     const [page, clicks, reviews] = await Promise.all([
         prisma.page.findUniqueOrThrow({

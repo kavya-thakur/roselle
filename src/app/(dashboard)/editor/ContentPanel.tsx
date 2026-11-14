@@ -1,24 +1,23 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- thumbnails and avatars come from any host */
 
-import { useRef, useState, type DragEvent } from "react";
+import { useRef, useState, type DragEvent, type Dispatch, type SetStateAction } from "react";
 import { IconCalendarEvent, IconCopy, IconDots, IconGripVertical, IconHeading, IconPencil, IconPlus, IconStar, IconTrash } from "@tabler/icons-react";
 
+import { EmptyState } from "@/components/EmptyState";
 import { LinkIcon, SocialIcon } from "@/components/SocialIcon";
-import { smallInputClass } from "@/components/Field";
 import { BLOCK_TYPES, newBlock } from "@/lib/pages/blocks";
 import { safeHref } from "@/lib/pages/links";
 import { formatNumber } from "@/lib/utils/format";
 import type { Block, PageDoc } from "@/lib/validations/page";
 import { AddDialog, BLOCK_ICONS } from "./AddDialog";
-import { BlockForm, ScheduleFields } from "./BlockForm";
-import { IconPicker, ImageInput, Label, Toggle } from "./controls";
+import { BlockForm, ScheduleFields, type BlockChange } from "./BlockForm";
 
 interface ContentPanelProps {
     page: PageDoc;
     username: string;
     clicks: Record<string, number>;
-    onChange: (page: PageDoc) => void;
+    onChange: Dispatch<SetStateAction<PageDoc>>;
     // the profile row is a shortcut to the Header section, where it's edited
     onEditHeader: () => void;
 }
@@ -27,7 +26,8 @@ interface ContentPanelProps {
 // or drag by its handle (focus the handle and use the arrow keys to move it without a mouse).
 export function ContentPanel({ page, username, clicks, onChange, onEditHeader }: ContentPanelProps) {
     const { blocks, profile } = page;
-    const setBlocks = (next: Block[]) => onChange({ ...page, blocks: next });
+    // applied to the latest page, so a change that lands late (an upload) can't undo others
+    const setBlocks = (next: Block[] | ((blocks: Block[]) => Block[])) => onChange((current) => ({ ...current, blocks: typeof next === "function" ? next(current.blocks) : next }));
 
     const [adding, setAdding] = useState(false);
     const [openId, setOpenId] = useState<string | null>(null);
@@ -49,7 +49,7 @@ export function ContentPanel({ page, username, clicks, onChange, onEditHeader }:
         setOpenId(block.id);
     }
 
-    const update = (block: Block) => setBlocks(blocks.map((existing) => (existing.id === block.id ? block : existing)));
+    const update = (id: string, change: BlockChange) => setBlocks((current) => current.map((existing) => (existing.id === id ? (typeof change === "function" ? change(existing) : change) : existing)));
     const remove = (id: string) => setBlocks(blocks.filter((block) => block.id !== id));
     const duplicate = (index: number) => setBlocks([...blocks.slice(0, index + 1), { ...blocks[index], id: crypto.randomUUID().slice(0, 8) }, ...blocks.slice(index + 1)]);
 
@@ -103,9 +103,10 @@ export function ContentPanel({ page, username, clicks, onChange, onEditHeader }:
             </div>
 
             {blocks.length === 0 && (
-                <div className="mt-6 rounded-3xl border border-dashed border-line-strong px-6 py-12 text-center">
-                    <p className="font-display text-2xl">Nothing here yet</p>
-                    <p className="mt-1.5 text-sm text-muted">Tap Add and paste your first link. That&apos;s all it takes.</p>
+                <div className="mt-6">
+                    <EmptyState picture="blocks" title="Nothing here yet">
+                        Tap <span className="font-semibold text-ink">Add</span> for a gallery, your services or a link. Paste a link and it&apos;s done.
+                    </EmptyState>
                 </div>
             )}
 
@@ -134,7 +135,7 @@ export function ContentPanel({ page, username, clicks, onChange, onEditHeader }:
                             clicks={clicks[block.id] ?? 0}
                             open={openId === block.id}
                             onToggle={() => setOpenId(openId === block.id ? null : block.id)}
-                            onChange={update}
+                            onChange={(change) => update(block.id, change)}
                             onDuplicate={() => duplicate(index)}
                             onRemove={() => remove(block.id)}
                             handle={
@@ -172,7 +173,7 @@ interface BlockCardProps {
     clicks: number;
     open: boolean;
     onToggle: () => void;
-    onChange: (block: Block) => void;
+    onChange: (change: BlockChange) => void;
     onDuplicate: () => void;
     onRemove: () => void;
     handle: React.ReactNode;
@@ -265,29 +266,7 @@ function BlockCard({ block, clicks, open, onToggle, onChange, onDuplicate, onRem
 
             {open && (
                 <div className="space-y-4 border-t border-line px-5 py-5 animate-[fade-in_0.2s_ease-out]">
-                    {block.type === "link" ? (
-                        <>
-                            <div>
-                                <Label htmlFor={`${block.id}-title`}>Title</Label>
-                                <input id={`${block.id}-title`} autoFocus value={block.title} onChange={(event) => onChange({ ...block, title: event.target.value })} className={smallInputClass} />
-                            </div>
-                            <div>
-                                <Label htmlFor={`${block.id}-url`}>URL</Label>
-                                <input id={`${block.id}-url`} value={block.url} onChange={(event) => onChange({ ...block, url: event.target.value })} placeholder="https://" className={smallInputClass} />
-                            </div>
-                            <div>
-                                <Label htmlFor={`${block.id}-thumbnail`}>Thumbnail</Label>
-                                <ImageInput id={`${block.id}-thumbnail`} value={block.thumbnail} onChange={(value) => onChange({ ...block, thumbnail: value })} />
-                            </div>
-                            <div>
-                                <Label>Icon {block.thumbnail && <span className="font-normal text-muted">(the thumbnail shows instead while there is one)</span>}</Label>
-                                <IconPicker value={block.icon} onChange={(icon) => onChange({ ...block, icon })} />
-                            </div>
-                            <Toggle label="Highlight this link (a larger button)" checked={block.featured} onChange={(featured) => onChange({ ...block, featured })} />
-                        </>
-                    ) : (
-                        <BlockForm block={block} onChange={onChange} />
-                    )}
+                    <BlockForm block={block} onChange={onChange} />
 
                     <div className="border-t border-line pt-4">
                         <button onClick={() => setScheduleOpen(!scheduleOpen)} className="flex items-center gap-2 text-sm font-semibold" aria-expanded={scheduleOpen}>

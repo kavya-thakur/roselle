@@ -9,6 +9,8 @@ export const alt = "A Roselle page";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const revalidate = 60;
+// drawn on the first request and kept, like the page itself ([username]/page.tsx)
+export const generateStaticParams = async () => [];
 
 // Our own uploads are stored as /media/<id>; the image renderer needs a full address to fetch them
 function absolute(src: string) {

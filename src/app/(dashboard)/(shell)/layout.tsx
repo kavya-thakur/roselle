@@ -53,10 +53,13 @@ export default async function DashboardLayout({ children }: LayoutProps<"/">) {
 
             {/* ---------- the page, on a big rounded sheet ---------- */}
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-canvas md:my-2 md:mr-2 md:rounded-[2rem] md:shadow-soft">
-                <header className="flex h-16 shrink-0 items-center justify-end gap-2 px-4 sm:px-6">
+                <header className="hidden h-16 shrink-0 items-center justify-end gap-2 px-4 sm:flex sm:px-6">
                     <CopyLink username={user.page.username} />
                 </header>
-                <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+                {/* relative: anything positioned inside a page (screen-reader-only labels, the chart's
+                    data table) belongs to this box, not the whole document, so it can't stretch the
+                    window and make the page scroll past an empty strip */}
+                <div className="relative flex min-h-0 flex-1 flex-col">{children}</div>
             </div>
         </div>
     );

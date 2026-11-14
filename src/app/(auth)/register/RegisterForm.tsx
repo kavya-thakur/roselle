@@ -29,7 +29,7 @@ export function RegisterForm({ username }: { username: string }) {
         setServerError(null);
         try {
             await api("/auth/register", { method: "POST", body: values });
-            router.replace("/editor");
+            router.replace("/welcome");
         } catch (error) {
             setServerError((error as Error).message);
         }

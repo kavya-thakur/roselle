@@ -103,6 +103,14 @@ body {
 .page-button:active {
     transform: translateY(0) scale(0.99);
 }
+/* the quieter section title: a small bold label over its block, centred */
+[data-titles="label"] .section-title {
+    font-family: var(--page-body);
+    font-size: 0.95rem;
+    font-weight: 700 !important;
+    letter-spacing: 0;
+    text-align: center;
+}
 .page-card {
     /* a pill-shaped card would cut its picture into a dome */
     border-radius: min(var(--page-radius), 1.5rem);
@@ -176,6 +184,32 @@ body {
 @keyframes fade-in {
     from {
         opacity: 0;
+    }
+}
+
+/* A creator's page glides to its sections ("Work with me" jumps to their services). Only the live
+   page: the landing page runs its own scroll animations. Still for people who ask for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+    html:has([data-live-page]) {
+        scroll-behavior: smooth;
+    }
+}
+
+/* A toast (components/Toast.tsx) drops in from above with a little settle */
+@keyframes toast-in {
+    from {
+        opacity: 0;
+        transform: translateY(-12px) scale(0.96);
+    }
+}
+
+/* Skeletons (components/Skeleton.tsx): a soft light sweeping across, so waiting reads as "coming" */
+@keyframes shimmer {
+    from {
+        background-position: 150% 0;
+    }
+    to {
+        background-position: -50% 0;
     }
 }
 
@@ -268,5 +302,13 @@ dialog.popup::backdrop {
     from {
         opacity: 0;
         transform: translateY(-8px);
+    }
+}
+
+/* The app's dropdown list (components/Dropdown.tsx) opening: a small drop and fade */
+@keyframes dropdown-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px) scale(0.98);
     }
 }

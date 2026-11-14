@@ -13,6 +13,8 @@ interface Person {
     cover: string;
     socials: Social[];
     links: string[];
+    // the picture on their first link, shown big as a photo card
+    feature?: string;
 }
 
 const PEOPLE: Person[] = [
@@ -23,6 +25,7 @@ const PEOPLE: Person[] = [
         cover: "photo-1518895949257-7621c3c786d7",
         socials: ["instagram", "website"],
         links: ["Order a Sunday bunch", "Weddings & events", "Flower school"],
+        feature: "photo-1519741497674-611481863552",
     },
     {
         name: "Lucía Romero",
@@ -31,6 +34,7 @@ const PEOPLE: Person[] = [
         cover: "photo-1622937309508-db3273465d8b",
         socials: ["instagram", "tiktok"],
         links: ["Book a bridal trial", "My kit, every product", "Masterclass dates"],
+        feature: "photo-1596462502278-27bfdc403348",
     },
     {
         name: "Zoë Laurent",
@@ -39,6 +43,7 @@ const PEOPLE: Person[] = [
         cover: "photo-1562048048-86d659689440",
         socials: ["instagram", "website"],
         links: ["Shop the summer prints", "Studio open days", "Wholesale"],
+        feature: "photo-1434389677669-e08b4cac3105",
     },
     {
         name: "Folake Adeyemi",
@@ -47,6 +52,7 @@ const PEOPLE: Person[] = [
         cover: "photo-1547961547-321889bff29e",
         socials: ["instagram", "youtube"],
         links: ["Book a wardrobe edit", "This season's lookbook", "Styling tips on YouTube"],
+        feature: "photo-1539109136881-3be0616acf4b",
     },
     {
         name: "Hana Mori",
@@ -63,6 +69,7 @@ const PEOPLE: Person[] = [
         cover: "photo-1544220828-842b050ef390",
         socials: ["spotify", "instagram"],
         links: ["Pre-save 'Telephone'", "Tour dates", "Vinyl & merch"],
+        feature: "photo-1505236858219-8359eb29e329",
     },
     {
         name: "Daniel Brandt",
@@ -71,6 +78,7 @@ const PEOPLE: Person[] = [
         cover: "photo-1551085429-91a8422c72ae",
         socials: ["instagram", "website"],
         links: ["Portfolio", "Print shop", "Book a shoot"],
+        feature: "photo-1426604966848-d7adac402bff",
     },
     {
         name: "Kwame Mensah",
@@ -79,6 +87,7 @@ const PEOPLE: Person[] = [
         cover: "photo-1557033051-1d426c3a4d42",
         socials: ["instagram", "tiktok"],
         links: ["Shop the new collection", "Made to measure", "Runway film"],
+        feature: "photo-1515886657613-9f3515b0c78f",
     },
     {
         name: "Marcus Hale",
@@ -87,6 +96,7 @@ const PEOPLE: Person[] = [
         cover: "photo-1727976971119-3cfb3cb88eeb",
         socials: ["instagram", "website"],
         links: ["Book a fitting", "The lookbook", "Visit the shop"],
+        feature: "photo-1441986300917-64674bd600d8",
     },
     {
         name: "Leo Ramos",
@@ -100,16 +110,19 @@ const PEOPLE: Person[] = [
 
 const STARTER = TEMPLATES[0].theme;
 
+// 600px wide: these pages only ever show as small cards, where that's sharp on a retina screen
 export const EXTRA_PAGES: PageDoc[] = PEOPLE.map((person, p) => ({
     profile: {
         name: person.name,
         bio: person.bio,
-        avatar: photo(person.portrait, 900),
-        cover: photo(person.cover, 900),
+        avatar: photo(person.portrait, 600),
+        cover: photo(person.cover, 600),
         socials: person.socials.map((platform) => ({ platform, url: platform === "email" ? "mailto:hello@example.com" : "https://example.com" })),
     },
     seo: { title: "", description: "" },
     // every section dresses them in its own look; this is only so the page is complete on its own
     theme: STARTER,
-    blocks: person.links.map((title, i) => blockSchema.parse({ id: `p${p}-${i}`, type: "link", title, url: "https://example.com", featured: i === 0 })),
+    blocks: person.links.map((title, i) =>
+        blockSchema.parse({ id: `p${p}-${i}`, type: "link", title, url: "https://example.com", featured: i === 0, thumbnail: i === 0 && person.feature ? photo(person.feature, 600) : "" }),
+    ),
 }));

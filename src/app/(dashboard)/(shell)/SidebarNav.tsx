@@ -21,7 +21,7 @@ export function SidebarNav({ admin = false, counts = {} }: { admin?: boolean; co
     const pages = admin ? [...PAGES, { href: "/admin", label: "Admin", icon: IconShieldCheck }] : PAGES;
 
     return (
-        <nav aria-label="Dashboard" className="flex gap-1 overflow-x-auto md:flex-col">
+        <nav aria-label="Dashboard" className="flex gap-1 overflow-x-auto [mask-image:linear-gradient(to_right,black_85%,transparent)] [scrollbar-width:none] md:flex-col md:[mask-image:none]">
             {pages.map(({ href, label, icon: Icon }) => {
                 const active = pathname.startsWith(href);
                 return (

@@ -6,6 +6,7 @@ import { IconArrowUp, IconBan, IconLoader2, IconPhotoUp, IconPlus, IconX } from 
 import { smallInputClass } from "@/components/Field";
 import { LinkIcon } from "@/components/SocialIcon";
 import { api } from "@/lib/api/client";
+import { toast } from "@/components/Toast";
 import { LINK_ICONS, type LinkIconName } from "@/lib/validations/page";
 
 // The small building blocks the editor's three panels share
@@ -49,11 +50,12 @@ export function Segmented<T extends string>({ value, options, onChange, label }:
 }
 
 // Phone photos are 5-15 MB and 4000+ pixels wide: far more than a page shows, and over the 4 MB
-// upload limit. Pictures larger than 2400px (or 1 MB) are redrawn at that size as WebP in the
+// upload limit. Pictures larger than 1800px (or 1 MB) are redrawn at that size as WebP in the
 // browser first, which makes them about a tenth of the size, keeps pages fast and the free
 // database small. GIFs are left alone (redrawing would stop the animation), and so is anything
-// the redraw wouldn't make smaller.
-const LONGEST_SIDE = 2400;
+// the redraw wouldn't make smaller. 1800px is still sharp full screen on a laptop (the
+// lightbox), and a third the weight of 2400px on a phone, which shows a page 400px wide.
+const LONGEST_SIDE = 1800;
 
 async function shrink(file: File) {
     if (file.type === "image/gif") return file;
@@ -216,7 +218,11 @@ export const moveUp = <T,>(list: T[], i: number) => list.map((_, j) => list[j ==
 
 // A list of pictures (a gallery, a case study): add many at once by uploading several files,
 // or paste addresses one by one; each has a description for screen readers and the full-screen view
-export function ImageListField({ id, images, max, onChange }: { id: string; images: { src: string; alt: string }[]; max: number; onChange: (images: { src: string; alt: string }[]) => void }) {
+type Picture = { src: string; alt: string };
+
+// Every change is a function of the latest list, because uploads finish one at a time while the
+// creator may be typing descriptions or removing pictures
+export function ImageListField({ id, images, max, onChange }: { id: string; images: Picture[]; max: number; onChange: (update: (images: Picture[]) => Picture[]) => void }) {
     const fileRef = useRef<HTMLInputElement>(null);
     const [progress, setProgress] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -225,22 +231,24 @@ export function ImageListField({ id, images, max, onChange }: { id: string; imag
     // arrives shows up straight away
     async function uploadAll(files: File[]) {
         setError(null);
-        let list = images;
         const room = files.slice(0, max - images.length);
+        let added = 0;
         for (const [i, file] of room.entries()) {
             setProgress(`Uploading ${i + 1} of ${room.length}…`);
             try {
-                list = [...list, { src: await uploadImage(file), alt: "" }];
-                onChange(list);
+                const src = await uploadImage(file);
+                onChange((current) => (current.length < max ? [...current, { src, alt: "" }] : current));
+                added += 1;
             } catch (uploadError) {
                 setError(`${file.name}: ${(uploadError as Error).message}`);
             }
         }
         if (files.length > room.length) setError(`Only ${max} pictures fit, so the last ${files.length - room.length} were left out`);
         setProgress(null);
+        if (added) toast(`${added} photo${added === 1 ? "" : "s"} added`, { detail: "Add a short description to each, for screen readers and the full-screen view." });
     }
 
-    const setImage = (i: number, patch: Partial<{ src: string; alt: string }>) => onChange(images.map((image, j) => (j === i ? { ...image, ...patch } : image)));
+    const setImage = (i: number, patch: Partial<Picture>) => onChange((current) => current.map((image, j) => (j === i ? { ...image, ...patch } : image)));
 
     return (
         <div className="space-y-2">
@@ -251,12 +259,12 @@ export function ImageListField({ id, images, max, onChange }: { id: string; imag
                         <input value={image.alt} onChange={(event) => setImage(i, { alt: event.target.value })} placeholder="Description" aria-label="Image description" className={smallInputClass} />
                     </div>
                     <div className="flex flex-col">
-                        <button type="button" onClick={() => onChange(images.filter((_, j) => j !== i))} aria-label="Remove image" className="flex size-9 shrink-0 items-center justify-center rounded-lg text-faint hover:bg-paper hover:text-danger">
+                        <button type="button" onClick={() => onChange((current) => current.filter((_, j) => j !== i))} aria-label="Remove image" className="flex size-9 shrink-0 items-center justify-center rounded-lg text-faint hover:bg-paper hover:text-danger">
                             <IconX size={15} />
                         </button>
                         {/* move it one place earlier: the simplest way to reorder a short list */}
                         {i > 0 && (
-                            <button type="button" onClick={() => onChange(moveUp(images, i))} aria-label="Move image up" className="flex size-9 shrink-0 items-center justify-center rounded-lg text-faint hover:bg-paper hover:text-ink">
+                            <button type="button" onClick={() => onChange((current) => moveUp(current, i))} aria-label="Move image up" className="flex size-9 shrink-0 items-center justify-center rounded-lg text-faint hover:bg-paper hover:text-ink">
                                 <IconArrowUp size={15} />
                             </button>
                         )}
@@ -270,7 +278,7 @@ export function ImageListField({ id, images, max, onChange }: { id: string; imag
                         {progress ? <IconLoader2 size={15} className="animate-spin" /> : <IconPhotoUp size={15} />}
                         {progress ?? "Upload photos"}
                     </button>
-                    <button type="button" onClick={() => onChange([...images, { src: "", alt: "" }])} className="flex h-9 items-center gap-1 rounded-full px-3 text-[13px] font-semibold text-pink hover:bg-sand">
+                    <button type="button" onClick={() => onChange((current) => [...current, { src: "", alt: "" }])} className="flex h-9 items-center gap-1 rounded-full px-3 text-[13px] font-semibold text-pink hover:bg-sand">
                         <IconPlus size={14} /> Add by address
                     </button>
                     <input

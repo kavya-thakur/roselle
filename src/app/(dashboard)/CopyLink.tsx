@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "@/components/Toast";
+
 import { useRef, useState } from "react";
 import QRCode from "qrcode";
 import { IconCheck, IconCopy, IconDownload, IconQrcode, IconX } from "@tabler/icons-react";
@@ -17,6 +19,7 @@ export function CopyLink({ username }: { username: string }) {
     async function copy() {
         await navigator.clipboard.writeText(`${window.location.origin}/${username}`);
         setCopied(true);
+        toast("Link copied", { detail: "Paste it in your bio, a message or an email." });
         setTimeout(() => setCopied(false), 1800);
     }
 
@@ -36,6 +39,7 @@ export function CopyLink({ username }: { username: string }) {
         link.href = href;
         link.download = `roselle-${username}.${kind}`;
         link.click();
+        toast(`QR code saved as ${kind.toUpperCase()}`, { detail: kind === "png" ? "Big enough to print on a flyer or a card." : "Scales to any size, for designers and printers." });
         if (kind === "svg") URL.revokeObjectURL(href);
     }
 

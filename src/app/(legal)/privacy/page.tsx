@@ -39,8 +39,8 @@ export default function PrivacyPage() {
 
             <h2>If you send a creator a message</h2>
             <p>
-                A page can have a contact form or an Enquire button on a service. What you send through it (your name, email address, message, the service and
-                date you asked about, and the website you came from, like instagram.com) is kept in that creator&apos;s inbox on Roselle and emailed to them, so they
+                A page can have a contact form or an Enquire button on a service. What you send through it (your name, email address, your WhatsApp number if you
+                give one, message, the service and date you asked about, and the website you came from, like instagram.com) is kept in that creator&apos;s inbox on Roselle and emailed to them, so they
                 can reply to you directly and keep track of the work. It stays until they delete it or close their account. We don&apos;t use it for anything else.
             </p>
 

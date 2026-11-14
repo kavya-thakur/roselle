@@ -74,6 +74,17 @@ describe("tapping a link", () => {
         expect((await read(await tap(page.id, "p1"))).location).toBe("http://localhost:3000/lena/work/p1");
     });
 
+    it("sends a tap on a pick to that pick's shop, counted against the Picks block", async () => {
+        const items = [{ id: "cup", title: "Cup", label: "$40", image: "https://img.example/cup.jpg", url: "https://shop.example.com/cup" }];
+        const { page } = await createCreator("lena", { blocks: [block({ id: "shelf", type: "picks", items })] });
+        const res = await read(await go(request(`/go/${page.id}/shelf?item=cup`), params({ pageId: String(page.id), blockId: "shelf" })));
+        await settle();
+        expect(res.location).toBe("https://shop.example.com/cup");
+        expect(await prisma.event.count({ where: { type: "CLICK", blockId: "shelf" } })).toBe(1);
+        // no pick named: back to the page
+        expect((await read(await tap(page.id, "shelf"))).location).toBe("http://localhost:3000/lena");
+    });
+
     it("stops working on a page that's been taken down", async () => {
         const { page } = await createCreator("lena", { blocks: [block({ id: "shop", type: "link", title: "Shop", url: "https://scam.example" })] });
         await prisma.page.update({ where: { id: page.id }, data: { suspendedAt: new Date() } });

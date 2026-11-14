@@ -96,3 +96,20 @@ export async function sendWeeklyEmails(now = new Date()) {
     }
     return sent;
 }
+
+// How long visits and clicks are kept. Analytics looks back at most 90 days and compares them
+// with the 90 before, so a year (and a bit) leaves plenty, and keeps the free database small.
+export const EVENT_DAYS = 400;
+
+// The daily tidy: signed-out-by-time sessions, used-up email links, and visits older than
+// EVENT_DAYS. Nothing anyone can still use or see.
+// ponytail: the old-visits delete scans the table once a day; add an index on createdAt alone
+// if that table reaches tens of millions of rows
+export async function tidyUp(now = new Date()) {
+    const [sessions, tokens, events] = await prisma.$transaction([
+        prisma.session.deleteMany({ where: { expiresAt: { lt: now } } }),
+        prisma.token.deleteMany({ where: { expiresAt: { lt: now } } }),
+        prisma.event.deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - EVENT_DAYS * DAY) } } }),
+    ]);
+    return { sessions: sessions.count, tokens: tokens.count, events: events.count };
+}

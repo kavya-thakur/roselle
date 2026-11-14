@@ -4,7 +4,7 @@
 import { safeHref } from "./links";
 import type { Theme } from "@/lib/validations/page";
 
-export const PATTERN_KEYS = ["dots", "checks", "stripes", "grid", "waves", "flowers", "hearts", "stars"] as const;
+export const PATTERN_KEYS = ["dots", "checks", "stripes", "grid", "waves", "flowers", "hearts", "stars", "leopard"] as const;
 export type PatternKey = (typeof PATTERN_KEYS)[number];
 
 export const PATTERN_LABELS: Record<PatternKey, string> = {
@@ -16,7 +16,31 @@ export const PATTERN_LABELS: Record<PatternKey, string> = {
     flowers: "Flowers",
     hearts: "Hearts",
     stars: "Stars",
+    leopard: "Leopard",
 };
+
+// One leopard spot: a warm centre and three solid broken crescents round it, the way real
+// leopard print goes. Turned and sized differently each time so no two spots match.
+const ROSETTE = [
+    "M-12 2 C-14 -6 -8 -12 -1 -12 C1 -12 2 -10 0 -9 C-5 -8 -8 -4 -8 1 C-8 4 -11 5 -12 2 Z",
+    "M6 -9 C11 -7 14 -2 13 4 C13 7 10 7 10 4 C10 0 8 -4 5 -6 C3 -7 4 -10 6 -9 Z",
+    "M8 10 C4 13 -3 13 -7 10 C-9 8 -7 6 -5 7 C-2 9 2 9 5 7 C7 6 10 8 8 10 Z",
+];
+const rosette = (x: number, y: number, turn: number, scale: number) =>
+    `<g transform='translate(${x} ${y}) rotate(${turn}) scale(${scale})'><ellipse rx='7.5' ry='5.5' fill='#c8873a' fill-opacity='0.3'/>` +
+    ROSETTE.map((d) => `<path d='${d}'/>`).join("") +
+    `</g>`;
+// the small specks between the spots: [x, y, size, turn]
+const SPECKS = [
+    [52, 10, 2.4, 20],
+    [38, 40, 1.8, 60],
+    [78, 48, 2.2, -20],
+    [30, 78, 2, 10],
+    [66, 100, 2.4, 40],
+    [110, 56, 1.8, 0],
+]
+    .map(([x, y, r, turn]) => `<ellipse cx='${x}' cy='${y}' rx='${r}' ry='${r * 0.7}' transform='rotate(${turn} ${x} ${y})'/>`)
+    .join("");
 
 // An SVG motif as a CSS background image. The colour goes into the URL, so its # is encoded.
 const svg = (body: string, size: number, ink: string) =>
@@ -54,6 +78,15 @@ function patternLayers(pattern: PatternKey, base: string, ink: string): { image:
             ];
         case "hearts":
             return [{ image: svg("<path d='M20 30 C 6 20 8 10 14 10 C 17 10 19 12 20 14 C 21 12 23 10 26 10 C 32 10 34 20 20 30 Z'/>", 40, ink), size: "40px 40px" }];
+        case "leopard":
+            // five spots on a 120px tile drawn at twice the size: big enough to read as leopard,
+            // placed so the repeat doesn't line up in rows
+            return [
+                {
+                    image: svg(rosette(22, 24, 10, 1) + rosette(80, 18, -35, 0.85) + rosette(52, 62, 70, 1.1) + rosette(12, 96, -10, 0.9) + rosette(96, 92, 30, 1) + SPECKS, 120, ink),
+                    size: "240px 240px",
+                },
+            ];
         case "stars":
             return [{ image: svg("<path d='M24 8 L27 20 L40 24 L27 28 L24 40 L21 28 L8 24 L21 20 Z'/>", 48, ink), size: "48px 48px" }];
     }

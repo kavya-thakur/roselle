@@ -1,4 +1,4 @@
-import { formatHours, formatMoney, formatPercent, plural } from "@/lib/utils/format";
+import { formatHours, formatMoney, formatPercent, plural, shareOf } from "@/lib/utils/format";
 
 export interface WeeklyNumbers {
     name: string;
@@ -29,7 +29,7 @@ export function weeklyEmailText(week: WeeklyNumbers, links: { analytics: string;
         "Here's how your page did over the last 7 days:",
         "",
         `  ${plural(week.visitors, "visitor")}`,
-        `  ${plural(week.enquiries, "enquiry", "enquiries")}${week.visitors && week.enquiries ? ` (${formatPercent(week.enquiries / week.visitors)} of visitors)` : ""}`,
+        `  ${plural(week.enquiries, "enquiry", "enquiries")}${week.enquiries && shareOf(week.enquiries, week.visitors) ? ` (${shareOf(week.enquiries, week.visitors)} of visitors)` : ""}`,
         `  ${week.booked} booked${week.booked ? `, worth ${money(week.bookedValue)}` : ""}`,
     ];
 

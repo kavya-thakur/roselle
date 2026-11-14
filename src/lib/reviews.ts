@@ -3,8 +3,9 @@ import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/db/prisma";
 import { hashToken } from "@/lib/auth/session";
 
-// How long a client has to use their review link
-export const REVIEW_LINK_DAYS = 60;
+import { REVIEW_LINK_DAYS } from "@/lib/messages";
+
+export { REVIEW_LINK_DAYS };
 
 export type PublicReview = { id: number; name: string; rating: number; text: string; service: string | null };
 

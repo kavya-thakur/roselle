@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- the avatar can come from any host */
 
-import { useRef, useState } from "react";
+import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { IconLoader2, IconPlus, IconTrash, IconX } from "@tabler/icons-react";
 
 import { SOCIAL_LABELS, SocialIcon } from "@/components/SocialIcon";
@@ -13,10 +13,12 @@ const field = "w-full rounded-xl border border-line bg-paper px-4 text-[15px] ou
 
 // The top of the page: how it's laid out, the photo, the name, the bio and the social icons.
 // One setting per line, the way a settings screen reads.
-export function HeaderPanel({ page, onChange }: { page: PageDoc; onChange: (page: PageDoc) => void }) {
+export function HeaderPanel({ page, onChange }: { page: PageDoc; onChange: Dispatch<SetStateAction<PageDoc>> }) {
     const { profile, theme } = page;
-    const setProfile = (patch: Partial<PageDoc["profile"]>) => onChange({ ...page, profile: { ...profile, ...patch } });
-    const setLayout = (patch: Partial<Theme["layout"]>) => onChange({ ...page, theme: { ...theme, layout: { ...theme.layout, ...patch } } });
+    // Changes are applied to the latest page, not the one on screen when they started: a photo
+    // finishing its upload must not undo what was typed while it uploaded
+    const setProfile = (patch: Partial<PageDoc["profile"]>) => onChange((current) => ({ ...current, profile: { ...current.profile, ...patch } }));
+    const setLayout = (patch: Partial<Theme["layout"]>) => onChange((current) => ({ ...current, theme: { ...current.theme, layout: { ...current.theme.layout, ...patch } } }));
 
     const fileRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);

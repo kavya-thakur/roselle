@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo, Bricolage_Grotesque, DM_Serif_Display, Manrope, Cormorant_Garamond, Fraunces, Inter, Space_Grotesk } from "next/font/google";
+import { Archivo, Bricolage_Grotesque, DM_Serif_Display, Manrope, Cormorant_Garamond, Fraunces, Inter, Pinyon_Script, Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "@/components/Toast";
 
 // Bricolage Grotesque (heavy) for headlines and Manrope for everything else: Roselle's own type
 const bricolage = Bricolage_Grotesque({ variable: "--font-bricolage", subsets: ["latin"] });
@@ -15,8 +16,10 @@ const cormorant = Cormorant_Garamond({ variable: "--font-cormorant", weight: ["4
 const fraunces = Fraunces({ variable: "--font-fraunces", subsets: ["latin"], preload: false });
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"], preload: false });
 const spaceGrotesk = Space_Grotesk({ variable: "--font-space-grotesk", subsets: ["latin"], preload: false });
+// a handwritten script for names ("Hi, I'm Sarah"); only the templates that ask for it use it
+const pinyon = Pinyon_Script({ variable: "--font-pinyon", weight: "400", subsets: ["latin"], preload: false });
 
-const fonts = [bricolage, manrope, archivo, dmSerif, cormorant, fraunces, inter, spaceGrotesk].map((font) => font.variable).join(" ");
+const fonts = [bricolage, manrope, archivo, dmSerif, cormorant, fraunces, inter, spaceGrotesk, pinyon].map((font) => font.variable).join(" ");
 
 const description = "Roselle is the link-in-bio for people with taste. Compose an editorial home for your work, your links and your story.";
 
@@ -42,7 +45,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <html lang="en" className={`${fonts} h-full antialiased`}>
             {/* suppressHydrationWarning: browser extensions (ColorZilla, Grammarly) add attributes to
                 <body> before React loads; that one element only, never its children */}
-            <body className="flex min-h-full flex-col" suppressHydrationWarning>{children}</body>
+            <body className="flex min-h-full flex-col" suppressHydrationWarning>
+                {children}
+                <Toaster />
+            </body>
         </html>
     );
 }

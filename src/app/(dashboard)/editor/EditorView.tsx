@@ -23,6 +23,8 @@ import { Button } from "@/components/Button";
 import { PageRenderer } from "@/components/PageRenderer";
 import type { PublicReview } from "@/lib/reviews";
 import { api } from "@/lib/api/client";
+import { toast } from "@/components/Toast";
+import { SITE_HOST } from "@/lib/site";
 import type { PageDoc } from "@/lib/validations/page";
 import { CopyLink } from "../CopyLink";
 import { LogoutButton } from "../LogoutButton";
@@ -67,7 +69,6 @@ export function EditorView({ username, initialDraft, initialPublished, initialPu
     const [previewOpen, setPreviewOpen] = useState(false);
     const [save, setSave] = useState<{ state: "saved" | "saving" | "error"; message?: string }>({ state: "saved" });
     const [publishing, setPublishing] = useState(false);
-    const [publishError, setPublishError] = useState<string | null>(null);
 
     // the draft as last saved, to know whether there's anything new to save
     const savedJson = useRef(JSON.stringify(initialDraft));
@@ -84,7 +85,11 @@ export function EditorView({ username, initialDraft, initialPublished, initialPu
                 savedJson.current = json;
                 setSave({ state: "saved" });
             } catch (error) {
-                setSave({ state: "error", message: (error as Error).message });
+                // said once when saving starts failing, not again on every keystroke after
+                setSave((previous) => {
+                    if (previous.state !== "error") toast.error("Your changes aren't saving", `${(error as Error).message} They'll save once you're back online.`);
+                    return { state: "error", message: (error as Error).message };
+                });
             }
         }, AUTOSAVE_DELAY);
 
@@ -103,7 +108,6 @@ export function EditorView({ username, initialDraft, initialPublished, initialPu
 
     async function publish() {
         setPublishing(true);
-        setPublishError(null);
         try {
             // publish copies the saved draft, so save what's on screen first
             if (JSON.stringify(page) !== savedJson.current) {
@@ -114,10 +118,11 @@ export function EditorView({ username, initialDraft, initialPublished, initialPu
             const result = await api<{ publishedAt: string }>("/page/publish", { method: "POST" });
             setPublished(page);
             setPublishedAt(result.publishedAt);
+            toast("Your page is live", { detail: `${SITE_HOST}/${username} now shows these changes.` });
             // the sidebar's setup checklist is drawn on the server from the saved page
             router.refresh();
         } catch (error) {
-            setPublishError((error as Error).message);
+            toast.error("Not published", (error as Error).message);
         } finally {
             setPublishing(false);
         }
@@ -172,11 +177,6 @@ export function EditorView({ username, initialDraft, initialPublished, initialPu
                         </Button>
                     )}
                 </div>
-                {publishError && (
-                    <p role="alert" className="absolute top-full right-5 z-10 rounded-xl bg-paper px-3 py-2 text-[13px] text-danger shadow-soft">
-                        {publishError}
-                    </p>
-                )}
             </header>
 
             <div className="flex min-h-0 flex-1">

@@ -6,10 +6,11 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { DrawSVGPlugin } from "gsap/DrawSVGPlugin";
 import { useGSAP } from "@gsap/react";
-import { IconCheck, IconLink, IconTrendingUp } from "@tabler/icons-react";
+import { IconTrendingUp } from "@tabler/icons-react";
 
 import type { PageDoc } from "@/lib/validations/page";
 import { PageCard } from "./PageCard";
+import { AddDemo } from "./AddDemo";
 import { photo, PHOTOS } from "./photos";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger, DrawSVGPlugin);
@@ -33,8 +34,7 @@ export function Chapters({ page, looks }: { page: PageDoc; looks: PageDoc[] }) {
     useGSAP(
         () => {
             const section = ref.current!;
-            // two lines: the wide one for two columns, the thin thread for phones and tablets
-            const line = section.querySelectorAll("[data-line]");
+            const line = section.querySelector("[data-line]");
 
             // the colour changes happen with or without reduced motion: they're a change of
             // state, just softened when motion is welcome
@@ -52,6 +52,11 @@ export function Chapters({ page, looks }: { page: PageDoc; looks: PageDoc[] }) {
             mm.add("(prefers-reduced-motion: no-preference)", () => {
                 // the line draws itself as far down the section as you've scrolled
                 gsap.fromTo(line, { drawSVG: "0%" }, { drawSVG: "100%", ease: "none", scrollTrigger: { trigger: section, start: "top 60%", end: "bottom 80%", scrub: 0.5 } });
+
+                // phones and tablets: each chapter's own swoosh draws itself behind its picture
+                gsap.utils.toArray<SVGPathElement>("[data-swoosh]").forEach((swoosh) =>
+                    gsap.fromTo(swoosh, { drawSVG: "0%" }, { drawSVG: "100%", ease: "none", scrollTrigger: { trigger: swoosh.closest("[data-chapter]"), start: "top 70%", end: "center 45%", scrub: 0.5 } }),
+                );
 
                 // depth: each piece drifts up at its own speed while its chapter passes
                 gsap.utils.toArray<HTMLElement>("[data-speed]").forEach((piece) => {
@@ -107,40 +112,9 @@ export function Chapters({ page, looks }: { page: PageDoc; looks: PageDoc[] }) {
                 />
             </svg>
 
-            {/* phones and tablets: one column, so the line becomes a thread weaving down the right-hand
-                margin instead, drawn the same way as you scroll */}
-            <svg aria-hidden viewBox="0 0 100 2700" preserveAspectRatio="none" className="pointer-events-none absolute inset-y-0 right-1 h-full w-4 lg:hidden">
-                <path
-                    data-line
-                    d="M50 0 C 95 150, 5 300, 50 450 S 95 750, 50 900 S 5 1200, 50 1350 S 95 1650, 50 1800 S 5 2100, 50 2250 S 95 2550, 50 2700"
-                    fill="none"
-                    stroke={MOODS[0].line}
-                    strokeWidth="7"
-                    strokeLinecap="round"
-                    vectorEffect="non-scaling-stroke"
-                />
-            </svg>
-
             {/* ---------- 01: adding ---------- */}
             <Chapter number="01" title={["Paste a link.", "That's it."]} body="Drop in any address and Roselle names it, styles it and puts it on your page. Headings, photos, galleries, video and projects work the same way.">
-                <div className="relative mx-auto h-[560px] w-full max-w-[520px]">
-                    <div data-speed="0.5" className="absolute top-0 left-[18%] w-[min(300px,62%)] rotate-[-4deg]">
-                        <PageCard page={page} className="h-[520px]" />
-                    </div>
-                    <img data-speed="1.2" src={photo(PHOTOS.elena.id, 400)} alt="" className="absolute top-[6%] -left-2 w-[30%] rotate-[-8deg] rounded-3xl shadow-lifted" />
-                    <img data-speed="0.9" src={photo(PHOTOS.desk.id, 400)} alt="" className="absolute right-0 bottom-[4%] w-[34%] rotate-[6deg] rounded-3xl shadow-lifted" />
-                    <div data-speed="1.6" className={`${CARD} absolute right-[-2%] top-[22%] flex items-center gap-3 p-3 pr-5`}>
-                        <span className="grid size-10 place-items-center rounded-xl bg-blush text-pink">
-                            <IconLink size={19} />
-                        </span>
-                        <span className="text-[14px] leading-tight">
-                            <span className="block font-bold">instagram.com/elena</span>
-                            <span className="mt-0.5 flex items-center gap-1 text-[13px] text-success">
-                                <IconCheck size={14} /> Added as &ldquo;Instagram&rdquo;
-                            </span>
-                        </span>
-                    </div>
-                </div>
+                <AddDemo page={page} />
             </Chapter>
 
             {/* ---------- 02: making it yours ---------- */}
@@ -198,7 +172,22 @@ function Chapter({ number, title, body, children }: { number: string; title: [st
                     {body}
                 </p>
             </div>
-            <div className="relative z-10">{children}</div>
+            <div className="relative z-10">
+                {/* phones and tablets: one column has no room for the long line, so each chapter gets a
+                    swoosh of its own behind its picture, in that chapter's colour */}
+                <svg aria-hidden viewBox="0 0 400 300" preserveAspectRatio="none" className="pointer-events-none absolute -inset-x-5 top-[12%] -z-10 h-[76%] w-[calc(100%+2.5rem)] lg:hidden">
+                    <path
+                        data-swoosh
+                        d="M-10 250 C 60 60, 190 20, 230 130 S 330 290, 410 70"
+                        fill="none"
+                        className="stroke-(--accent)"
+                        strokeWidth="26"
+                        strokeLinecap="round"
+                        vectorEffect="non-scaling-stroke"
+                    />
+                </svg>
+                {children}
+            </div>
         </div>
     );
 }

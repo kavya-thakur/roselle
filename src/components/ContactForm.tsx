@@ -57,6 +57,8 @@ export function ContactForm({ pageId, blockId, button, serviceId, askDate = fals
                 <input name="name" required maxLength={100} autoComplete="name" placeholder="Your name" aria-label="Your name" className={field} />
                 <input name="email" type="email" required maxLength={254} autoComplete="email" placeholder="Your email" aria-label="Your email" className={field} />
             </div>
+            {/* optional: lets the creator answer, and send payment details, on WhatsApp */}
+            <input name="phone" type="tel" maxLength={20} autoComplete="tel" placeholder="WhatsApp number, optional (+91 98765 43210)" aria-label="WhatsApp number (optional)" className={field} />
             {askDate && (
                 <label className="flex flex-col gap-1 text-xs font-semibold text-(--page-muted)">
                     When? (optional)

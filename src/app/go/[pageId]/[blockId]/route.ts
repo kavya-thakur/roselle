@@ -1,7 +1,7 @@
 import { after, NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { recordEvent } from "@/lib/analytics/track";
-import { hasCaseStudy, isLive, targetOf } from "@/lib/pages/links";
+import { destinationOf, isLive } from "@/lib/pages/links";
 import { pageSchema } from "@/lib/validations/page";
 
 // Every link on a public page points here first: count the click, then send the visitor on.
@@ -16,8 +16,8 @@ export async function GET(req: NextRequest, { params }: RouteContext<"/go/[pageI
 
     // a taken-down page's links stop working too, so a scam can't keep using them
     const block = published.success && !page?.suspendedAt ? published.data.blocks.find((block) => block.id === blockId) : undefined;
-    // a project with a case study goes to its page on Roselle; anything else to its own address
-    const target = block && isLive(block) ? (hasCaseStudy(block) ? `/${page!.username}/work/${block.id}` : targetOf(block)) : undefined;
+    // a pick inside a Picks block is named by ?item=; a project with a case study goes to its page on Roselle
+    const target = block && isLive(block) ? destinationOf(block, page!.username, req.nextUrl.searchParams.get("item")) : undefined;
 
     if (!page || !target) {
         // an old or edited link: back to the page rather than an error

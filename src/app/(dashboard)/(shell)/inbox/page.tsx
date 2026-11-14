@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { prisma } from "@/lib/db/prisma";
+import { pageSchema } from "@/lib/validations/page";
 import { InboxView } from "./InboxView";
 
 export const metadata: Metadata = { title: "Inbox" };
@@ -22,6 +23,7 @@ export default async function InboxPage() {
             id: true,
             name: true,
             email: true,
+            phone: true,
             message: true,
             service: true,
             wantedOn: true,
@@ -39,9 +41,14 @@ export default async function InboxPage() {
     });
     await prisma.enquiry.updateMany({ where: { pageId: user.page.id, readAt: null }, data: { readAt: new Date() } });
 
+    // the name the creator signs their messages with: the one on their page
+    const draft = pageSchema.safeParse((await prisma.page.findUniqueOrThrow({ where: { id: user.page.id }, select: { draft: true } })).draft);
+    const creatorName = (draft.success && draft.data.profile.name.trim()) || user.page.username;
+
     return (
         <InboxView
             currency={user.currency}
+            creatorName={creatorName}
             monthlyGoal={user.monthlyGoal}
             paymentLink={user.paymentLink ?? ""}
             enquiries={enquiries.map(({ readAt, createdAt, bookedAt, reviewRequestedAt, paymentRequestedAt, review, ...enquiry }) => ({

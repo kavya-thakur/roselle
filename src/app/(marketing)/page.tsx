@@ -32,7 +32,7 @@ export default function LandingPage() {
     // choice, not the landing page's green and pink.
     const showcase = SHOWCASE.filter((template) => template.id !== "butter");
     const rail = [sasha, folake, amara, kwame, hana, clara, daniel, lucia, zoe, marcus, leo, theo, ines, noor];
-    const looks = showcase.map((template, i) => ({ name: template.name, page: { ...rail[i], theme: template.theme } }));
+    const looks = showcase.map((template, i) => ({ name: template.name, page: { ...rail[i % rail.length], theme: template.theme } }));
 
     // the zoom section's wall: fourteen different people round Mira, each in a different look
     const wall = [elena, sasha, noor, theo, ines, amara, lucia, zoe, folake, hana, clara, daniel, kwame, leo];
@@ -42,8 +42,8 @@ export default function LandingPage() {
         <Motion>
             <Nav />
             <main>
-                {/* four creators, four looks: a poster, a printed pattern, a pink poster, a banner */}
-                <Hero profiles={[sasha, dress(amara, "bloom"), mira, elena]} />
+                {/* four creators, four looks: a dark poster, a cherry-red one, a pink one, pistachio */}
+                <Hero profiles={[sasha, dress(clara, "cherry"), mira, dress(leo, "pistachio")]} />
                 <ZoomReveal star={mira} pages={mosaic} />
                 {/* chapter two: three people, three looks */}
                 <Chapters page={elena} looks={[dress(hana, "velvet"), dress(zoe, "candy"), dress(marcus, "sweetheart")]} />
@@ -54,11 +54,11 @@ export default function LandingPage() {
                         { trade: "Florists", page: dress(amara, "picnic") },
                         { trade: "Singers", page: dress(clara, "velvet") },
                         { trade: "Pastry chefs", page: dress(leo, "candy") },
-                        { trade: "Stylists", page: dress(folake, "rosebud") },
-                        { trade: "Photographers", page: dress(daniel, "starlight") },
+                        { trade: "Stylists", page: dress(folake, "tangerine") },
+                        { trade: "Photographers", page: dress(daniel, "mocha") },
                         { trade: "Writers", page: dress(hana, "bloom") },
                         { trade: "Designers", page: dress(kwame, "sweetheart") },
-                        { trade: "Makeup artists", page: dress(lucia, "poster") },
+                        { trade: "Makeup artists", page: dress(lucia, "blush") },
                     ]}
                 />
                 <TemplatesRail looks={looks} />

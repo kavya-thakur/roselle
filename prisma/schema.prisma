@@ -29,6 +29,8 @@ model User {
   paymentLink     String?
   // set when they click the link in the welcome email; nothing is blocked before that
   emailVerifiedAt DateTime?
+  // finished (or skipped) the first-run questions at /welcome; until then the editor sends them there
+  onboardedAt     DateTime?
   createdAt       DateTime  @default(now())
 
   page     Page?
@@ -54,6 +56,8 @@ model Token {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  // the daily clean-up deletes the expired ones
+  @@index([expiresAt])
 }
 
 // A signed-in browser. The cookie holds a random token; only its sha256 is stored here, so a
@@ -67,6 +71,7 @@ model Session {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([expiresAt])
 }
 
 // Each person has one page, at roselle.page/<username>.
@@ -111,6 +116,8 @@ model Enquiry {
   pageId    Int
   name      String
   email     String
+  // their WhatsApp number, if they gave one, so a payment or review request can open their chat
+  phone     String?
   message   String
   // the service they asked about, as it was named then, so renaming it later doesn't rewrite history
   service   String?
@@ -207,7 +214,8 @@ model Event {
 
   page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
 
-  @@index([pageId, createdAt])
+  // every analytics question is "this page, views (or clicks), since this date", in that order
+  @@index([pageId, type, createdAt])
 }
 
 // Uploaded images (avatars, gallery pictures), served by /media/<id>
