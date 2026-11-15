@@ -11,8 +11,18 @@ export const FONTS = {
     manrope: { label: "Manrope", css: "var(--font-manrope)", weight: 700 },
     inter: { label: "Inter", css: "var(--font-inter)", weight: 700 },
     "space-grotesk": { label: "Space Grotesk", css: "var(--font-space-grotesk)", weight: 700 },
-    // a handwritten script: for names and titles, set large; never for long text
+    playfair: { label: "Playfair Display", css: "var(--font-playfair)", weight: 600 },
+    lora: { label: "Lora", css: "var(--font-lora)", weight: 600 },
+    "instrument-serif": { label: "Instrument Serif", css: "var(--font-instrument)", weight: 400 },
+    poppins: { label: "Poppins", css: "var(--font-poppins)", weight: 700 },
+    "dm-sans": { label: "DM Sans", css: "var(--font-dm-sans)", weight: 700 },
+    outfit: { label: "Outfit", css: "var(--font-outfit)", weight: 700 },
+    syne: { label: "Syne", css: "var(--font-syne)", weight: 700 },
+    // tall capitals only, one weight: for names and titles, like a poster
+    bebas: { label: "Bebas Neue", css: "var(--font-bebas)", weight: 400, display: true },
+    // handwritten scripts: for names and titles, set large; never for long text
     pinyon: { label: "Pinyon Script", css: "var(--font-pinyon)", weight: 400, script: true },
+    caveat: { label: "Caveat", css: "var(--font-caveat)", weight: 600, script: true },
 } as const;
 
 // A photo the "Photo" template starts with, so it shows something before an upload

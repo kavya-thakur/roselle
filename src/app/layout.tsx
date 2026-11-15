@@ -1,5 +1,24 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo, Bricolage_Grotesque, DM_Serif_Display, Manrope, Cormorant_Garamond, Fraunces, Inter, Pinyon_Script, Space_Grotesk } from "next/font/google";
+import {
+    Archivo,
+    Bebas_Neue,
+    Bricolage_Grotesque,
+    Caveat,
+    Cormorant_Garamond,
+    DM_Sans,
+    DM_Serif_Display,
+    Fraunces,
+    Instrument_Serif,
+    Inter,
+    Lora,
+    Manrope,
+    Outfit,
+    Pinyon_Script,
+    Playfair_Display,
+    Poppins,
+    Space_Grotesk,
+    Syne,
+} from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/Toast";
 
@@ -18,8 +37,17 @@ const inter = Inter({ variable: "--font-inter", subsets: ["latin"], preload: fal
 const spaceGrotesk = Space_Grotesk({ variable: "--font-space-grotesk", subsets: ["latin"], preload: false });
 // a handwritten script for names ("Hi, I'm Sarah"); only the templates that ask for it use it
 const pinyon = Pinyon_Script({ variable: "--font-pinyon", weight: "400", subsets: ["latin"], preload: false });
+const playfair = Playfair_Display({ variable: "--font-playfair", subsets: ["latin"], style: ["normal", "italic"], preload: false });
+const lora = Lora({ variable: "--font-lora", subsets: ["latin"], style: ["normal", "italic"], preload: false });
+const instrument = Instrument_Serif({ variable: "--font-instrument", weight: "400", style: ["normal", "italic"], subsets: ["latin"], preload: false });
+const poppins = Poppins({ variable: "--font-poppins", weight: ["400", "500", "600", "700", "800"], subsets: ["latin"], preload: false });
+const dmSans = DM_Sans({ variable: "--font-dm-sans", subsets: ["latin"], preload: false });
+const outfit = Outfit({ variable: "--font-outfit", subsets: ["latin"], preload: false });
+const syne = Syne({ variable: "--font-syne", subsets: ["latin"], preload: false });
+const bebas = Bebas_Neue({ variable: "--font-bebas", weight: "400", subsets: ["latin"], preload: false });
+const caveat = Caveat({ variable: "--font-caveat", subsets: ["latin"], preload: false });
 
-const fonts = [bricolage, manrope, archivo, dmSerif, cormorant, fraunces, inter, spaceGrotesk, pinyon].map((font) => font.variable).join(" ");
+const fonts = [bricolage, manrope, archivo, dmSerif, cormorant, fraunces, inter, spaceGrotesk, pinyon, playfair, lora, instrument, poppins, dmSans, outfit, syne, bebas, caveat].map((font) => font.variable).join(" ");
 
 const description = "Roselle is the link-in-bio for people with taste. Compose an editorial home for your work, your links and your story.";
 

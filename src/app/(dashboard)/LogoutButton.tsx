@@ -8,6 +8,8 @@ export function LogoutButton() {
     const [busy, setBusy] = useState(false);
 
     async function logOut() {
+        // on phones it's a lone icon in the corner, easy to tap by accident; signing back in is a chore
+        if (!window.confirm("Log out of Roselle on this device?")) return;
         setBusy(true);
         await api("/auth/logout", { method: "POST" }).catch(() => {});
         // a full load, so nothing from the signed-in app stays in memory

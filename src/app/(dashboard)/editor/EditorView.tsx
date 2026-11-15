@@ -20,6 +20,7 @@ import {
     IconSettings,
     IconUserSquareRounded,
     IconX,
+    IconArrowsSort,
 } from "@tabler/icons-react";
 
 import { Button } from "@/components/Button";
@@ -35,6 +36,8 @@ import { ContentPanel } from "./ContentPanel";
 import { HeaderPanel } from "./HeaderPanel";
 import { DesignPanel } from "./DesignPanel";
 import { record, redo, start, undo } from "./history";
+import { ArrangeView } from "./Arrange";
+import { useBackToClose } from "@/components/useBackToClose";
 
 const SECTIONS = [
     { id: "content", label: "Content", icon: IconLayoutList },
@@ -76,9 +79,14 @@ export function EditorView({ username, initialDraft, initialPublished, initialPu
     const [publishedAt, setPublishedAt] = useState(initialPublishedAt);
     const [section, setSection] = useState<Section>("content");
     const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
+    // the preview with a bar on each block to drag, move and hide it, and order a gallery's photos
+    const [arranging, setArranging] = useState(false);
+    const preview = arranging ? <ArrangeView page={page} onChange={setPage} reviews={reviews} /> : <PageRenderer page={page} mode="preview" reviews={reviews} />;
     const [menuOpen, setMenuOpen] = useState(false);
     // phones and tablets: the page opens full screen from the bottom bar instead of sitting beside the card
     const [previewOpen, setPreviewOpen] = useState(false);
+    // the phone's Back gesture closes the preview, rather than leaving the editor
+    useBackToClose(previewOpen, () => setPreviewOpen(false));
     const [save, setSave] = useState<{ state: "saved" | "saving" | "error"; message?: string }>({ state: "saved" });
     const [publishing, setPublishing] = useState(false);
 
@@ -316,12 +324,21 @@ export function EditorView({ username, initialDraft, initialPublished, initialPu
                             }`}
                         >
                             <div className="h-full overflow-y-auto overscroll-contain [scrollbar-width:none]">
-                                <PageRenderer page={page} mode="preview" reviews={reviews} />
+                                {preview}
                             </div>
                         </div>
 
                         {/* a small toolbar beside the preview */}
                         <div className="absolute top-1/2 right-0 flex -translate-y-1/2 flex-col gap-1 rounded-full bg-paper p-1 shadow-soft">
+                            <button
+                                onClick={() => setArranging(!arranging)}
+                                aria-pressed={arranging}
+                                aria-label="Arrange blocks and photos"
+                                title="Arrange: drag blocks and photos on the page"
+                                className={`flex size-10 items-center justify-center rounded-full transition ${arranging ? "bg-pink text-white" : "text-muted hover:bg-sand hover:text-ink"}`}
+                            >
+                                <IconArrowsSort size={18} />
+                            </button>
                             {(["mobile", "desktop"] as const).map((option) => (
                                 <button
                                     key={option}
@@ -343,7 +360,11 @@ export function EditorView({ username, initialDraft, initialPublished, initialPu
             </div>
 
             {/* ---------- phones and tablets: the sections and Preview in a bar at the bottom ---------- */}
-            <nav aria-label="Editor sections" className="fixed inset-x-3 bottom-3 z-30 flex rounded-full bg-ink p-1.5 text-white shadow-lifted lg:hidden">
+            {/* hidden while typing: it would ride up on top of the keyboard and cover the field */}
+            <nav
+                aria-label="Editor sections"
+                className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 flex rounded-full bg-ink p-1.5 text-white shadow-lifted lg:hidden pointer-coarse:[body:has(:is(input:not([type=checkbox],[type=range],[type=color],[type=file]),textarea):focus)_&]:hidden"
+            >
                 {SECTIONS.map(({ id, label, icon: Icon }) => (
                     <button
                         key={id}
@@ -363,15 +384,32 @@ export function EditorView({ username, initialDraft, initialPublished, initialPu
 
             {previewOpen && (
                 <div role="dialog" aria-modal="true" aria-label="Preview of your page" className="fixed inset-0 z-40 flex flex-col bg-cream animate-[fade-in_0.2s_ease-out] lg:hidden">
-                    <div className="flex h-14 shrink-0 items-center justify-between px-4">
-                        <span className="text-sm font-semibold">Preview</span>
-                        <button onClick={() => setPreviewOpen(false)} aria-label="Close the preview" className="flex size-10 items-center justify-center rounded-full bg-paper shadow-soft">
+                    <div className="flex h-14 shrink-0 items-center gap-2 px-4">
+                        {/* View or Arrange: the page as visitors see it, or with handles to reorder it */}
+                        <div role="radiogroup" aria-label="Preview mode" className="flex rounded-full bg-paper p-1 shadow-soft">
+                            {[
+                                { value: false, label: "View", icon: IconEye },
+                                { value: true, label: "Arrange", icon: IconArrowsSort },
+                            ].map(({ value, label, icon: Icon }) => (
+                                <button
+                                    key={label}
+                                    role="radio"
+                                    aria-checked={arranging === value}
+                                    onClick={() => setArranging(value)}
+                                    className={`flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition ${arranging === value ? "bg-ink text-white" : "text-muted"}`}
+                                >
+                                    <Icon size={15} /> {label}
+                                </button>
+                            ))}
+                        </div>
+                        <SaveState save={save} />
+                        <button onClick={() => setPreviewOpen(false)} aria-label="Close the preview" className="ml-auto flex size-10 items-center justify-center rounded-full bg-paper shadow-soft">
                             <IconX size={18} />
                         </button>
                     </div>
                     <div className="mx-3 mb-3 min-h-0 flex-1 overflow-hidden rounded-[1.75rem] border border-line bg-paper shadow-lifted">
                         <div className="h-full overflow-y-auto overscroll-contain">
-                            <PageRenderer page={page} mode="preview" reviews={reviews} />
+                            {preview}
                         </div>
                     </div>
                 </div>

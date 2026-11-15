@@ -2,6 +2,7 @@
 // gradients or a tiny inline SVG, so they cost no image downloads and stay sharp at any size.
 
 import { safeHref } from "./links";
+import { patternInk } from "./colour";
 import type { Theme } from "@/lib/validations/page";
 
 export const PATTERN_KEYS = ["dots", "checks", "stripes", "grid", "waves", "flowers", "hearts", "stars", "leopard"] as const;
@@ -114,7 +115,7 @@ export function pageBackground(theme: Theme) {
         // the first colour laid over the photo at 55%, so white text stays readable on any picture
         return photo ? `linear-gradient(${base}8c, ${base}8c), url("${photo}") center / cover` : base;
     }
-    if (theme.background.kind === "pattern") return patternBackground(theme.background.pattern, base, middle);
+    if (theme.background.kind === "pattern") return patternBackground(theme.background.pattern, base, patternInk(theme.background));
     if (theme.background.kind === "gradient") return `linear-gradient(${theme.background.angle}deg, ${base}, ${middle}, ${light})`;
 
     // "glow": the light colour lit from the top right, the middle one rising from the bottom left

@@ -3,6 +3,7 @@ import { getPublishedPage } from "@/lib/pages/publish";
 import { sized } from "@/lib/media/sized";
 import { safeHref } from "@/lib/pages/links";
 import { patternStyle } from "@/lib/pages/patterns";
+import { patternInk } from "@/lib/pages/colour";
 import type { Theme } from "@/lib/validations/page";
 import { SITE_HOST } from "@/lib/site";
 
@@ -26,7 +27,7 @@ function absolute(src: string) {
 function backgroundOf(theme: Theme) {
     const [base, middle, light] = theme.background.colors;
     const { kind, angle, pattern } = theme.background;
-    if (kind === "pattern") return patternStyle(pattern, base, middle);
+    if (kind === "pattern") return patternStyle(pattern, base, patternInk(theme.background));
     if (kind === "gradient") return { backgroundColor: base, backgroundImage: `linear-gradient(${angle}deg, ${base}, ${middle}, ${light})` };
     // the glow, simplified to one sweep: the light colour rising into the corner
     if (kind === "glow") return { backgroundColor: base, backgroundImage: `linear-gradient(${angle}deg, ${base} 0%, ${base} 35%, ${middle} 80%, ${light} 100%)` };

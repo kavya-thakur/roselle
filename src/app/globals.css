@@ -53,6 +53,17 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
+/* Phones zoom the whole page into any text box under 16px when it's tapped, and don't zoom back
+   out, which leaves the layout cut off and a blank strip at the bottom. At 16px they don't.
+   Touch screens only; unlayered, so it wins over the text-sm on the inputs themselves. */
+@media (pointer: coarse) {
+    input,
+    textarea,
+    select {
+        font-size: 16px !important;
+    }
+}
+
 ::selection {
     background: var(--color-rose);
     color: var(--color-ink);
@@ -115,8 +126,19 @@ body {
     /* a pill-shaped card would cut its picture into a dome */
     border-radius: min(var(--page-radius), 1.5rem);
     border: 1px solid color-mix(in oklab, var(--page-text) 14%, transparent);
-    background: color-mix(in oklab, var(--page-text) 5%, transparent);
+    /* set by themeStyle on every page. No color-mix() fallback in here: the CSS compiler rewrites
+       color-mix for older browsers and drops the var() around it */
+    background: var(--page-card-bg);
     backdrop-filter: var(--page-blur);
+}
+
+/* Running text (the bio, text blocks, descriptions) at the size and weight chosen in Design → Text */
+.page-prose {
+    font-size: calc(15px * var(--page-text-scale, 1));
+    font-weight: var(--page-text-weight, 400);
+}
+.page-prose-small {
+    font-size: calc(14px * var(--page-text-scale, 1));
 }
 
 /* ---------- Motion ---------- */

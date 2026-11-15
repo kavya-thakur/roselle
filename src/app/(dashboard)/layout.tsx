@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { KeyboardFix } from "./KeyboardFix";
 
 // Everything signed-in lives under here. The proxy only checks that a cookie exists; this checks
 // it's a real, current session. The editor is full-screen; analytics and settings get the sidebar
@@ -11,5 +12,10 @@ export default async function DashboardLayout({ children }: LayoutProps<"/">) {
         redirect("/login");
     }
 
-    return <div className="flex h-dvh flex-col bg-cream">{children}</div>;
+    return (
+        <div className="flex h-dvh flex-col bg-cream">
+            {children}
+            <KeyboardFix />
+        </div>
+    );
 }

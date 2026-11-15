@@ -1,5 +1,5 @@
 /* eslint-disable @next/next/no-img-element -- creators' images come from any host, next/image would need each one listed */
-import type { CSSProperties, ReactNode } from "react";
+import { Fragment, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { IconArrowDown, IconArrowRight, IconArrowUpRight, IconStarFilled, IconClock, IconCoffee, IconCurrencyRupee, IconEyeOff, IconHeart, IconMapPin } from "@tabler/icons-react";
 
@@ -30,13 +30,15 @@ interface PageRendererProps {
     username?: string;
     // the approved reviews, for a Reviews block (they're stored apart from the page)
     reviews?: PublicReview[];
+    // the editor's Arrange mode puts its controls around each block (index: its place in page.blocks)
+    wrap?: (block: Block, index: number, view: ReactNode) => ReactNode;
 }
 
 // Draws a creator page from its JSON document. The same component is the public page, the
 // editor's live preview and the landing page's examples, so they can never look different.
 // It sizes itself to its box (container queries), not the window, which is what lets the
 // editor show a phone and a desktop preview side by side on one screen.
-export function PageRenderer({ page, mode = "live", pageId, username, reviews = [] }: PageRendererProps) {
+export function PageRenderer({ page, mode = "live", pageId, username, reviews = [], wrap }: PageRendererProps) {
     const { profile, theme } = page;
     // visitors never see hidden or off-schedule blocks, nor one left unfinished (a button that goes nowhere)
     // (a Reviews block with nothing approved yet is unfinished too)
@@ -108,11 +110,12 @@ export function PageRenderer({ page, mode = "live", pageId, username, reviews = 
                             // stay together, and a heading keeps the section it introduces close
                             const previous = blocks[i - 1];
                             const spaced = !!previous && previous.type !== block.type && previous.type !== "heading";
-                            return (
+                            const view = (
                                 <BlockFrame key={block.id} block={block} order={Math.min(i + 1, 12)} preview={mode === "preview"} spaced={spaced}>
                                     <BlockView block={block} linkOf={linkOf} pageId={mode === "live" ? pageId : undefined} reviews={reviews} />
                                 </BlockFrame>
                             );
+                            return wrap ? <Fragment key={block.id}>{wrap(block, i, view)}</Fragment> : view;
                         })}
                     </main>
 
@@ -152,14 +155,14 @@ function Profile({ profile, centered, size = "regular", cta }: ProfileProps) {
             <h1
                 style={{ fontWeight: "var(--page-heading-weight)" }}
                 className={`font-(family-name:--page-heading) leading-[0.98] tracking-[-0.025em] text-balance ${
-                    size === "poster" ? "text-[3.4rem] @md:text-7xl" : "mt-6 text-[2.5rem] @md:text-5xl"
+                    size === "poster" ? "text-[calc(3.4rem*var(--page-heading-scale,1))] @md:text-[calc(4.5rem*var(--page-heading-scale,1))]" : "mt-6 text-[calc(2.5rem*var(--page-heading-scale,1))] @md:text-[calc(3rem*var(--page-heading-scale,1))]"
                 }`}
             >
                 {profile.name || "Your name"}
             </h1>
 
             {profile.bio && (
-                <p className={`mt-4 text-[15px] leading-relaxed whitespace-pre-line text-pretty text-(--page-muted) ${centered ? "mx-auto max-w-md" : ""}`}>{profile.bio}</p>
+                <p className={`page-prose mt-4 leading-relaxed whitespace-pre-line text-pretty text-(--page-muted) ${centered ? "mx-auto max-w-md" : ""}`}>{profile.bio}</p>
             )}
 
             {cta && (
@@ -342,7 +345,7 @@ function BlockView({ block, linkOf, pageId, reviews }: BlockViewProps) {
             return <SectionTitle className="mb-1">{block.text}</SectionTitle>;
 
         case "text":
-            return <p className="text-[15px] leading-relaxed whitespace-pre-line text-pretty opacity-90">{block.text}</p>;
+            return <p className="page-prose leading-relaxed whitespace-pre-line text-pretty opacity-90">{block.text}</p>;
 
         case "image": {
             const src = safeHref(block.src);
@@ -526,7 +529,7 @@ function BlockView({ block, linkOf, pageId, reviews }: BlockViewProps) {
                     <h3 style={{ fontWeight: "var(--page-heading-weight)" }} className="font-(family-name:--page-heading) text-2xl leading-tight">
                         {block.title || "Work with me"}
                     </h3>
-                    {block.text && <p className="mt-2 text-sm leading-relaxed whitespace-pre-line text-pretty text-(--page-muted)">{block.text}</p>}
+                    {block.text && <p className="page-prose page-prose-small mt-2 leading-relaxed whitespace-pre-line text-pretty text-(--page-muted)">{block.text}</p>}
                     <ContactForm pageId={pageId} blockId={block.id} button={block.button || "Send message"} />
                 </div>
             );
@@ -740,9 +743,17 @@ const RADIUS = { sharp: "3px", rounded: "14px", pill: "999px" };
 
 // Everything a template can change ends up in these few variables; .page-button and .page-card
 // in globals.css read them
+// the type settings' steps (Design → Text): weights, and sizes as multipliers of the usual size
+const WEIGHTS = { regular: 400, bold: 700, heavy: 900 };
+const HEADING_SCALE = { small: 0.85, medium: 1, large: 1.2 };
+const TEXT_SCALE = { small: 0.92, medium: 1, large: 1.12 };
+
 export function themeStyle(theme: Theme) {
     const { button } = theme;
     const heading = FONTS[theme.font.heading];
+    const type = theme.type;
+    // a chosen weight wins over the font's own
+    const headingWeight = type && type.headingWeight !== "auto" ? WEIGHTS[type.headingWeight] : heading.weight;
 
     return {
         background: pageBackground(theme),
@@ -751,11 +762,16 @@ export function themeStyle(theme: Theme) {
         "--page-text": theme.text,
         "--page-muted": theme.muted,
         "--page-heading": FONTS[theme.font.heading].css,
-        "--page-heading-weight": FONTS[theme.font.heading].weight,
+        "--page-heading-weight": headingWeight,
+        "--page-heading-scale": HEADING_SCALE[type?.headingSize ?? "medium"],
+        "--page-text-scale": TEXT_SCALE[type?.textSize ?? "medium"],
+        "--page-text-weight": type?.textWeight === "bold" ? 600 : 400,
+        // the boxes: their own colour at its fill, or (the default) the text colour, faintly
+        "--page-card-bg": `color-mix(in oklab, ${theme.card?.color || theme.text} ${theme.card?.fill ?? 5}%, transparent)`,
         // small titles, numbers and quotes: the heading font, unless it's a script, which is
         // only legible large (the name, section titles); then the text font, in bold
         "--page-title": "script" in heading ? FONTS[theme.font.body].css : heading.css,
-        "--page-title-weight": "script" in heading ? 650 : heading.weight,
+        "--page-title-weight": "script" in heading ? 650 : headingWeight,
         "--page-body": FONTS[theme.font.body].css,
         "--page-radius": RADIUS[button.shape],
         "--page-button-text": button.textColor,

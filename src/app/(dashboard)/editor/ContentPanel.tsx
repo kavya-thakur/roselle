@@ -1,8 +1,8 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- thumbnails and avatars come from any host */
 
-import { useRef, useState, type DragEvent, type Dispatch, type SetStateAction } from "react";
-import { IconCalendarEvent, IconCopy, IconDots, IconGripVertical, IconHeading, IconPencil, IconPlus, IconStar, IconTrash } from "@tabler/icons-react";
+import { useState, type Dispatch, type SetStateAction } from "react";
+import { IconArrowDown, IconArrowUp, IconCalendarEvent, IconCopy, IconDots, IconGripVertical, IconHeading, IconPencil, IconPlus, IconStar, IconTrash } from "@tabler/icons-react";
 
 import { EmptyState } from "@/components/EmptyState";
 import { LinkIcon, SocialIcon } from "@/components/SocialIcon";
@@ -12,6 +12,7 @@ import { formatNumber } from "@/lib/utils/format";
 import type { Block, PageDoc } from "@/lib/validations/page";
 import { AddDialog, BLOCK_ICONS } from "./AddDialog";
 import { BlockForm, ScheduleFields, type BlockChange } from "./BlockForm";
+import { moved, useSortable } from "./sortable";
 
 interface ContentPanelProps {
     page: PageDoc;
@@ -23,7 +24,8 @@ interface ContentPanelProps {
 }
 
 // What's on the page, top to bottom. Each block is a card you can open to edit, switch off,
-// or drag by its handle (focus the handle and use the arrow keys to move it without a mouse).
+// or drag by its handle, with a mouse or a finger (focus the handle and use the arrow keys to
+// move it without either; the ⋯ menu has Move up and Move down too).
 export function ContentPanel({ page, username, clicks, onChange, onEditHeader }: ContentPanelProps) {
     const { blocks, profile } = page;
     // applied to the latest page, so a change that lands late (an upload) can't undo others
@@ -31,17 +33,12 @@ export function ContentPanel({ page, username, clicks, onChange, onEditHeader }:
 
     const [adding, setAdding] = useState(false);
     const [openId, setOpenId] = useState<string | null>(null);
-    const [dragFrom, setDragFrom] = useState<number | null>(null);
-    const [dropAt, setDropAt] = useState<number | null>(null);
-    const rows = useRef<(HTMLLIElement | null)[]>([]);
 
     function move(from: number, to: number) {
         if (to < 0 || to >= blocks.length || from === to) return;
-        const next = [...blocks];
-        const [block] = next.splice(from, 1);
-        next.splice(to, 0, block);
-        setBlocks(next);
+        setBlocks((current) => moved(current, from, to));
     }
+    const sortable = useSortable(move);
 
     // new blocks go on top and open straight away, ready to fill in
     function add(block: Block) {
@@ -52,16 +49,6 @@ export function ContentPanel({ page, username, clicks, onChange, onEditHeader }:
     const update = (id: string, change: BlockChange) => setBlocks((current) => current.map((existing) => (existing.id === id ? (typeof change === "function" ? change(existing) : change) : existing)));
     const remove = (id: string) => setBlocks(blocks.filter((block) => block.id !== id));
     const duplicate = (index: number) => setBlocks([...blocks.slice(0, index + 1), { ...blocks[index], id: crypto.randomUUID().slice(0, 8) }, ...blocks.slice(index + 1)]);
-
-    function startDrag(event: DragEvent, index: number) {
-        setDragFrom(index);
-        setOpenId(null);
-        event.dataTransfer.effectAllowed = "move";
-        // Firefox won't start a drag without some data
-        event.dataTransfer.setData("text/plain", blocks[index].id);
-        const row = rows.current[index];
-        if (row) event.dataTransfer.setDragImage(row, 24, 24);
-    }
 
     const avatar = safeHref(profile.avatar);
 
@@ -114,21 +101,8 @@ export function ContentPanel({ page, username, clicks, onChange, onEditHeader }:
                 {blocks.map((block, index) => (
                     <li
                         key={block.id}
-                        ref={(element) => {
-                            rows.current[index] = element;
-                        }}
-                        onDragOver={(event) => {
-                            if (dragFrom === null) return;
-                            event.preventDefault();
-                            setDropAt(index);
-                        }}
-                        onDrop={(event) => {
-                            event.preventDefault();
-                            if (dragFrom !== null) move(dragFrom, index);
-                            setDragFrom(null);
-                            setDropAt(null);
-                        }}
-                        className={`group rounded-3xl border bg-paper transition-[border-color,opacity] ${dragFrom === index ? "opacity-40" : ""} ${dropAt === index && dragFrom !== index ? "border-ink" : "border-line"}`}
+                        ref={sortable.item(index)}
+                        className={`group rounded-3xl border bg-paper transition-[border-color,box-shadow,transform] ${sortable.dragging === index ? "relative z-10 scale-[1.02] border-ink shadow-lifted" : "border-line"}`}
                     >
                         <BlockCard
                             block={block}
@@ -137,15 +111,14 @@ export function ContentPanel({ page, username, clicks, onChange, onEditHeader }:
                             onToggle={() => setOpenId(openId === block.id ? null : block.id)}
                             onChange={(change) => update(block.id, change)}
                             onDuplicate={() => duplicate(index)}
+                            onMove={index === 0 && index === blocks.length - 1 ? undefined : (step) => move(index, index + step)}
+                            first={index === 0}
+                            last={index === blocks.length - 1}
                             onRemove={() => remove(block.id)}
                             handle={
                                 <button
-                                    draggable
-                                    onDragStart={(event) => startDrag(event, index)}
-                                    onDragEnd={() => {
-                                        setDragFrom(null);
-                                        setDropAt(null);
-                                    }}
+                                    {...sortable.handle(index)}
+                                    onClick={() => setOpenId(null)}
                                     onKeyDown={(event) => {
                                         if (event.key === "ArrowUp" || event.key === "ArrowDown") {
                                             event.preventDefault();
@@ -153,7 +126,7 @@ export function ContentPanel({ page, username, clicks, onChange, onEditHeader }:
                                         }
                                     }}
                                     aria-label="Drag to move. Or use the arrow keys."
-                                    className="flex w-7 shrink-0 cursor-grab items-center justify-center text-faint opacity-60 transition group-hover:opacity-100 hover:text-ink focus-visible:opacity-100 active:cursor-grabbing"
+                                    className="flex w-9 shrink-0 cursor-grab items-center justify-center text-faint transition group-hover:text-ink hover:text-ink active:cursor-grabbing pointer-fine:w-7 pointer-fine:opacity-60 pointer-fine:group-hover:opacity-100"
                                 >
                                     <IconGripVertical size={16} />
                                 </button>
@@ -176,10 +149,14 @@ interface BlockCardProps {
     onChange: (change: BlockChange) => void;
     onDuplicate: () => void;
     onRemove: () => void;
+    // a step up (-1) or down (1); undefined when it's the only block
+    onMove?: (step: -1 | 1) => void;
+    first: boolean;
+    last: boolean;
     handle: React.ReactNode;
 }
 
-function BlockCard({ block, clicks, open, onToggle, onChange, onDuplicate, onRemove, handle }: BlockCardProps) {
+function BlockCard({ block, clicks, open, onToggle, onChange, onDuplicate, onRemove, onMove, first, last, handle }: BlockCardProps) {
     const [menu, setMenu] = useState(false);
     const [scheduleOpen, setScheduleOpen] = useState(!!(block.startsAt || block.endsAt));
     const Icon = BLOCK_ICONS[block.type];
@@ -244,6 +221,8 @@ function BlockCard({ block, clicks, open, onToggle, onChange, onDuplicate, onRem
                             <div className="absolute top-11 right-2 z-20 w-44 overflow-hidden rounded-2xl border border-line bg-paper py-1.5 shadow-lifted animate-[fade-in_0.15s_ease-out]">
                                 {[
                                     { label: "Edit", icon: IconPencil, action: onToggle },
+                                    ...(onMove && !first ? [{ label: "Move up", icon: IconArrowUp, action: () => onMove(-1) }] : []),
+                                    ...(onMove && !last ? [{ label: "Move down", icon: IconArrowDown, action: () => onMove(1) }] : []),
                                     { label: "Duplicate", icon: IconCopy, action: onDuplicate },
                                     { label: "Delete", icon: IconTrash, action: onRemove, danger: true },
                                 ].map(({ label, icon: ItemIcon, action, danger }) => (
