@@ -17,5 +17,6 @@ export default async function setup() {
     if (!rowCount) await client.query(`CREATE DATABASE "${name}"`);
     await client.end();
 
-    execSync("npx prisma migrate deploy", { env: { ...process.env, DATABASE_URL: url.toString(), DIRECT_URL: "" }, stdio: "pipe" });
+    // the direct addresses are blanked, or prisma.config.ts would migrate the real database instead
+    execSync("npx prisma migrate deploy", { env: { ...process.env, DATABASE_URL: url.toString(), DIRECT_URL: "", DATABASE_URL_UNPOOLED: "" }, stdio: "pipe" });
 }

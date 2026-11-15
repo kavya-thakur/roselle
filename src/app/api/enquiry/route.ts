@@ -8,6 +8,7 @@ import { isLive } from "@/lib/pages/links";
 import { SITE_URL } from "@/lib/site";
 import { enquirySchema } from "@/lib/validations/enquiry";
 import { pageSchema } from "@/lib/validations/page";
+import { ENQUIRY_EMAILS_A_DAY } from "@/lib/email/limits";
 
 // A visitor's message from a "Work with me" or Services block: kept in the creator's inbox, where
 // it can become a booking, and emailed to them with Reply going straight back to the visitor
@@ -40,6 +41,11 @@ export async function POST(req: NextRequest) {
         await prisma.enquiry.create({
             data: { pageId, name, email, phone: phone || null, message, service: service?.name || null, wantedOn: wantedOn || null, source: sourceOf(referrer, utmSource) },
         });
+
+        // saved either way; emailed only up to the day's limit (counted in the database, so it
+        // holds however many servers or addresses the messages come from)
+        const lastDay = await prisma.enquiry.count({ where: { pageId, createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } });
+        if (lastDay > ENQUIRY_EMAILS_A_DAY) return NextResponse.json({ ok: true }, { status: 201 });
 
         const about = [service && `About: ${service.name}${service.price ? ` (${service.price})` : ""}`, wantedOn && `For: ${wantedOn}`, phone && `WhatsApp: ${phone}`].filter(Boolean).join("\n");
 

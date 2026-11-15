@@ -7,6 +7,7 @@ import { DELETE as deleteReview, PATCH as approveReview } from "@/app/api/review
 import { GET as dailyJob } from "@/app/api/cron/daily/route";
 import { getApprovedReviews } from "@/lib/reviews";
 import { EVENT_DAYS } from "@/lib/reports/daily";
+import { SENT_FOR_YOU_A_DAY } from "@/lib/email/limits";
 import { pageStats } from "@/lib/analytics/stats";
 import { createCreator, emails, params, read, request, settle, signInAs } from "./helpers";
 
@@ -126,6 +127,18 @@ describe("payment requests", () => {
         expect(await prisma.enquiry.findUniqueOrThrow({ where: { id: enquiry.id } })).toMatchObject({ paymentRequestedAmount: 10000 });
     });
 
+    it("that Roselle emails stop at the day's limit; the creator can still send their own", async () => {
+        const { enquiry } = await lenaWithEnquiry("BOOKED");
+        for (let i = 0; i < SENT_FOR_YOU_A_DAY; i++) expect((await ask(enquiry.id, { amount: 10000, link: "lena@okhdfcbank" })).status).toBe(200);
+
+        const refused = await read(await ask(enquiry.id, { amount: 10000, link: "lena@okhdfcbank" }));
+        expect(refused.status).toBe(429);
+        expect(refused.body.message).toContain("from your WhatsApp or your own email");
+        expect((await ask(enquiry.id, { amount: 10000, link: "lena@okhdfcbank", via: "self" })).status).toBe(200);
+        await settle();
+        expect(emails).toHaveLength(SENT_FOR_YOU_A_DAY);
+    });
+
     it("email a booked client what's due and their UPI id, and remember where they pay", async () => {
         const { lena, enquiry } = await lenaWithEnquiry("BOOKED");
         const res = await read(await ask(enquiry.id, { amount: 10000, link: "lena@okhdfcbank", note: "50% deposit to hold your date." }));
@@ -212,9 +225,13 @@ describe("the daily job", () => {
         expect(emails).toHaveLength(1);
     });
 
-    it("sends the weekly email to creators with news, and skips quiet weeks and those who turned it off", async () => {
+    it("sends the weekly email to creators with news, and skips quiet weeks, those who turned it off and unconfirmed addresses", async () => {
         const busy = await createCreator("lena");
         await prisma.enquiry.create({ data: { pageId: busy.page.id, name: "Priya", email: "p@example.com", message: "Hi", service: "Portraits" } });
+        // never confirmed their address: may be made up, and mail to it would bounce
+        const unconfirmed = await createCreator("ghost");
+        await prisma.enquiry.create({ data: { pageId: unconfirmed.page.id, name: "Bo", email: "b@example.com", message: "Hi" } });
+        await prisma.user.updateMany({ where: { id: { not: unconfirmed.user.id } }, data: { emailVerifiedAt: new Date() } });
         await createCreator("quiet");
         const off = await createCreator("off");
         await prisma.user.update({ where: { id: off.user.id }, data: { weeklyEmail: false } });

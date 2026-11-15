@@ -51,7 +51,8 @@ function standsOut(services: { service: string; enquiries: number }[]) {
 // (and Brevo's free plan sends 300 emails a day)
 export async function sendWeeklyEmails(now = new Date()) {
     const users = await prisma.user.findMany({
-        where: { weeklyEmail: true, page: { publishedAt: { not: null }, suspendedAt: null } },
+        // confirmed addresses only: mail to made-up ones bounces, and Brevo marks down senders who bounce
+        where: { weeklyEmail: true, emailVerifiedAt: { not: null }, page: { publishedAt: { not: null }, suspendedAt: null } },
         select: { email: true, currency: true, monthlyGoal: true, page: { select: { id: true, username: true } } },
     });
 

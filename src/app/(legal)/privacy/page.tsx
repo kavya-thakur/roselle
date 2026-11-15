@@ -73,6 +73,7 @@ export default function PrivacyPage() {
             <ul>
                 <li>Vercel: hosts the website.</li>
                 <li>Neon: hosts the database.</li>
+                <li>Cloudinary: stores and serves the photos you upload.</li>
                 <li>Brevo: sends our emails.</li>
             </ul>
             <p>They may store data in other countries, including the United States and the European Union. We don&apos;t sell your data or share it with advertisers.</p>

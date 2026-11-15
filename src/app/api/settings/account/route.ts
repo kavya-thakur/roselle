@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { verifyPassword } from "@/lib/auth/password";
@@ -7,9 +7,11 @@ import { handleRouteError, parseBody } from "@/lib/api/http";
 import { tooManyAttempts } from "@/lib/api/rateLimit";
 import { refreshPublicPage } from "@/lib/pages/publish";
 import { deleteAccountSchema } from "@/lib/validations/settings";
+import { deleteImagesOf } from "@/lib/media/cloudinary";
 
 // Deletes the account and everything in it: the page, its analytics, uploaded images and
-// sessions all go with the user (onDelete: Cascade). The username is free again straight away.
+// sessions all go with the user (onDelete: Cascade), and their photos on Cloudinary right after.
+// The username is free again straight away.
 export async function DELETE(req: NextRequest) {
     try {
         const user = await getCurrentUser();
@@ -30,6 +32,7 @@ export async function DELETE(req: NextRequest) {
         await endSession();
         await prisma.user.delete({ where: { id: user.id } });
         refreshPublicPage(user.page.username);
+        after(() => deleteImagesOf(user.id).catch((error) => console.error("[Delete account] photos left on Cloudinary", user.id, error)));
 
         return NextResponse.json({ ok: true });
     } catch (error) {

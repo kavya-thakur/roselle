@@ -53,3 +53,4 @@ next-env.d.ts
 
 # private notes, kept on this machine only
 /docs
+.neon

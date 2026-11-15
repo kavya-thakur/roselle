@@ -6,6 +6,7 @@ import { starterPage } from "@/lib/pages/blocks";
 import { blockSchema, type Block, type PageDoc } from "@/lib/validations/page";
 
 import { cookieJar, emails, pending } from "./recorded";
+import { clearAttempts } from "@/lib/api/rateLimit";
 
 export { cookieJar, emails };
 
@@ -20,6 +21,7 @@ export async function resetAll() {
     await prisma.$executeRawUnsafe(`TRUNCATE "User", "Session", "Token", "Page", "Event", "Media", "Enquiry", "Report", "Review" RESTART IDENTITY CASCADE`);
     cookieJar.clear();
     emails.length = 0;
+    clearAttempts();
 }
 
 // Every request comes from its own address unless a test says otherwise, so the per-IP rate
