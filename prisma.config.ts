@@ -10,9 +10,10 @@ export default defineConfig({
     migrations: {
         path: "prisma/migrations",
     },
-    // migrations need a direct connection; hosts like Neon give a pooled one (DATABASE_URL) for
-    // the app and a direct one for this. Locally the one address does both.
+    // migrations need a direct connection; Neon gives a pooled one (DATABASE_URL) for the app and
+    // a direct one for this (DATABASE_URL_UNPOOLED, as `neon env pull` names it; DIRECT_URL also
+    // works). Locally the one address does both.
     datasource: {
-        url: process.env.DIRECT_URL || process.env.DATABASE_URL,
+        url: process.env.DIRECT_URL || process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL,
     },
 });

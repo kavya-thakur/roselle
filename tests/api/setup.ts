@@ -9,6 +9,10 @@ process.env.SITE_URL = "http://localhost:3000";
 process.env.VISITOR_SALT = "test-salt";
 process.env.CRON_SECRET = "test-cron-secret";
 process.env.ADMIN_EMAILS = "admin@example.com";
+// never the real outside services, even when .env has their keys: photos are kept in the test
+// database (a test that wants Cloudinary sets its own fake address), and emails are kept below
+process.env.CLOUDINARY_URL = "";
+process.env.BREVO_API_KEY = "";
 
 // Only the outside world is replaced; the route handlers, validation, sessions and database
 // queries are the real ones.

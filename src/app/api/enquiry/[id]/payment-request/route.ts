@@ -8,6 +8,7 @@ import { paymentTarget } from "@/lib/pages/links";
 import { getPublishedPage } from "@/lib/pages/publish";
 import { paymentRequestSchema } from "@/lib/validations/enquiry";
 import { paymentMessage } from "@/lib/messages";
+import { SENT_FOR_YOU_LIMIT_MESSAGE, sentTooManyFor } from "@/lib/email/limits";
 
 // Records that a booked client was asked to pay, and how much. Usually the creator sends the message
 // themselves (WhatsApp, their own email: "self"), and this only records it; or Roselle emails it for
@@ -25,6 +26,9 @@ export async function POST(req: NextRequest, { params }: RouteContext<"/api/enqu
         }
 
         const { amount, link, note, via } = parsed.data;
+        if (via === "roselle" && sentTooManyFor(user.id)) {
+            return NextResponse.json({ ok: false, message: SENT_FOR_YOU_LIMIT_MESSAGE }, { status: 429 });
+        }
         const target = paymentTarget(link);
         if (!target) {
             return NextResponse.json({ ok: false, errors: { link: ["Use a payment page address starting with https://, or a UPI ID like name@okbank"] } }, { status: 400 });

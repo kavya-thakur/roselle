@@ -8,6 +8,7 @@ import { getPublishedPage } from "@/lib/pages/publish";
 import { newReviewToken, REVIEW_LINK_DAYS } from "@/lib/reviews";
 import { SITE_URL } from "@/lib/site";
 import { reviewMessage } from "@/lib/messages";
+import { SENT_FOR_YOU_LIMIT_MESSAGE, sentTooManyFor } from "@/lib/email/limits";
 
 // Makes a paid client's one-time review link and hands it back, for the creator to send from their
 // own WhatsApp or email; with { via: "roselle" }, Roselle emails it for them. Asking again makes a
@@ -19,6 +20,12 @@ export async function POST(req: NextRequest, { params }: RouteContext<"/api/enqu
 
         if (tooManyAttempts(`review-request:${user.id}`, 30, 60 * 60 * 1000)) {
             return NextResponse.json({ ok: false, message: "That's a lot of requests. Please try again in an hour." }, { status: 429 });
+        }
+
+        // the body is optional: no body, or anything but "self", means Roselle emails it
+        const via = (await req.json().catch(() => null))?.via === "self" ? "self" : "roselle";
+        if (via === "roselle" && sentTooManyFor(user.id)) {
+            return NextResponse.json({ ok: false, message: SENT_FOR_YOU_LIMIT_MESSAGE }, { status: 429 });
         }
 
         const enquiry = await prisma.enquiry.findFirst({
@@ -35,8 +42,6 @@ export async function POST(req: NextRequest, { params }: RouteContext<"/api/enqu
         await prisma.enquiry.update({ where: { id: enquiry.id }, data: { reviewTokenHash: hash, reviewRequestedAt } });
 
         const link = `${SITE_URL}/review/${token}`;
-        // the body is optional: no body, or anything but "self", means Roselle emails it
-        const via = (await req.json().catch(() => null))?.via === "self" ? "self" : "roselle";
         if (via === "roselle") {
             const creator = (await getPublishedPage(user.page.username))?.doc.profile.name || user.page.username;
             const { subject, text } = reviewMessage({ creator, client: enquiry.name, service: enquiry.service, link, days: REVIEW_LINK_DAYS }, "roselle");

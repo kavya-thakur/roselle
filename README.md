@@ -182,7 +182,8 @@ them if they prefer, but the default is that a client hears from the person they
 | --- | --- |
 | Postgres JSON document for the page, relational tables for everything that's queried | The page is always read and written whole; enquiries, reviews and events are filtered and counted |
 | Indexes shaped like the questions | `Event (pageId, type, createdAt)` serves every analytics count; unique visitors are `count(DISTINCT …)` in SQL |
-| Photos shrunk in the browser before upload | A 20 MB phone photo arrives as a few hundred KB of WebP at 1800px; served with year-long browser and CDN caching |
+| Photos on Cloudinary, only their address in the database | Free storage and CDN with no card; each photo is served at the size it's shown, as AVIF or WebP |
+| Photos shrunk in the browser before upload | A 20 MB phone photo arrives as a few hundred KB of WebP at 1800px |
 | Functional state updates throughout the editor | An upload finishing late can never undo edits made while it ran |
 | Emails sent after the response | A slow or failing email never loses an enquiry |
 | Daily tidy-up | Expired sessions and links, and visits older than 400 days, so the free database never fills |
@@ -226,13 +227,14 @@ locally with no accounts.
 | Variable | What it's for |
 | --- | --- |
 | `DATABASE_URL` | Postgres connection (Neon: the pooled one) |
-| `DIRECT_URL` | Neon's direct connection, for migrations |
+| `DATABASE_URL_UNPOOLED` | Neon's direct connection, for migrations (`neon env pull` writes it; `DIRECT_URL` also works) |
 | `APP_URL` | The public address, for share images and links |
 | `VISITOR_SALT` | Secret mixed into visitor hashes (`openssl rand -hex 32`) |
 | `BREVO_API_KEY`, `MAIL_FROM` | Sending email; leave empty locally |
 | `ADMIN_EMAILS` | Who can open `/admin` (comma separated) |
 | `CONTACT_EMAIL` | Shown on the privacy and terms pages (defaults to `MAIL_FROM`) |
 | `CRON_SECRET` | Protects the daily job (`openssl rand -hex 32`) |
+| `CLOUDINARY_URL` | Photo storage; leave empty locally and photos are kept in the database |
 
 ### Scripts
 
@@ -265,12 +267,14 @@ npm test
 | What | Service | Free limit |
 | --- | --- | --- |
 | App | [Vercel](https://vercel.com) Hobby | Non-commercial use |
-| Database | [Neon](https://neon.tech) | 0.5 GB, photos included |
+| Database | [Neon](https://neon.tech) | 0.5 GB |
+| Photos | [Cloudinary](https://cloudinary.com) | 25 credits a month (about 25 GB of storage and traffic) |
 | Email | [Brevo](https://brevo.com) | 300 emails a day |
 
 1. **Neon**: create a project; copy the pooled and the direct connection strings.
-2. **Brevo**: verify a sender address and create an API key.
-3. **Vercel**: import the repository and set the variables above. `vercel-build` applies the
+2. **Cloudinary**: sign up (no card) and copy the `CLOUDINARY_URL` line from the dashboard.
+3. **Brevo**: verify a sender address and create an API key.
+4. **Vercel**: import the repository and set the variables above. `vercel-build` applies the
    migrations, then builds. `vercel.json` schedules the daily job.
 
 Maps and music use keyless embeds, and payments go to the creator's own accounts, so there are no
@@ -322,7 +326,7 @@ to remove it, and the pricing section on the landing page moves it to the Pro ca
 
 Marked with `ponytail:` comments in the code, each with the point at which it should change.
 
-- Photos are stored in Postgres: fine for a beta, move to object storage (Cloudflare R2) before a
-  public launch.
 - Sign-in rate limits are counted per server; use a shared store (Upstash Redis) on serverless.
 - The inbox loads every enquiry for a page; paginate past a few thousand.
+- A photo replaced or removed from a page stays on Cloudinary until the account is deleted; sweep
+  unused photos if storage gets close to the free allowance.

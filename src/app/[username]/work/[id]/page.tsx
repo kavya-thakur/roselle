@@ -7,6 +7,7 @@ import { IconArrowLeft, IconArrowUpRight } from "@tabler/icons-react";
 import { Lightbox } from "@/components/Lightbox";
 import { themeStyle, Zoom } from "@/components/PageRenderer";
 import { hasCaseStudy, isLive, safeHref } from "@/lib/pages/links";
+import { sized } from "@/lib/media/sized";
 import { getPublishedPage } from "@/lib/pages/publish";
 
 // Kept like the page it belongs to: a minute at most, and Publish refreshes both
@@ -75,7 +76,7 @@ export default async function CaseStudyPage({ params }: PageProps<"/[username]/w
 
                 {cover && (
                     <Zoom group="case" src={cover} alt={project.title} className="mt-10">
-                        <img src={cover} alt={project.title} className="max-h-[80svh] w-full rounded-[min(var(--page-radius),1.5rem)] object-cover" />
+                        <img src={sized(cover, 1600)} alt={project.title} className="max-h-[80svh] w-full rounded-[min(var(--page-radius),1.5rem)] object-cover" />
                     </Zoom>
                 )}
 
@@ -87,7 +88,7 @@ export default async function CaseStudyPage({ params }: PageProps<"/[username]/w
                         {images.map((image, i) => (
                             <figure key={i} className="mb-4 break-inside-avoid">
                                 <Zoom group="case" src={safeHref(image.src)!} alt={image.alt}>
-                                    <img src={safeHref(image.src)} alt={image.alt} loading="lazy" className="w-full rounded-[min(var(--page-radius),1.5rem)]" />
+                                    <img src={sized(safeHref(image.src)!, 1200)} alt={image.alt} loading="lazy" className="w-full rounded-[min(var(--page-radius),1.5rem)]" />
                                 </Zoom>
                                 {image.alt && <figcaption className="mt-2 text-xs text-(--page-muted)">{image.alt}</figcaption>}
                             </figure>

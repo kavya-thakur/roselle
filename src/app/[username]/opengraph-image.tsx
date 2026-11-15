@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { getPublishedPage } from "@/lib/pages/publish";
+import { sized } from "@/lib/media/sized";
 import { safeHref } from "@/lib/pages/links";
 import { patternStyle } from "@/lib/pages/patterns";
 import type { Theme } from "@/lib/validations/page";
@@ -12,12 +13,12 @@ export const revalidate = 60;
 // drawn on the first request and kept, like the page itself ([username]/page.tsx)
 export const generateStaticParams = async () => [];
 
-// Our own uploads are stored as /media/<id>; the image renderer needs a full address to fetch them
+// Photos on Cloudinary come as a JPEG (this renderer can't read WebP or AVIF). Photos kept in
+// the database (/media, only without Cloudinary) are left out: they're WebP, and on your own
+// computer the renderer won't fetch from localhost; the card is drawn without them, never broken.
 function absolute(src: string) {
     const url = safeHref(src);
-    if (!url) return null;
-    if (url.startsWith("https://")) return url;
-    return url.startsWith("/media/") && process.env.APP_URL ? `${process.env.APP_URL.replace(/\/$/, "")}${url}` : null;
+    return url?.startsWith("https://") ? sized(url, 1200, "jpg") : null;
 }
 
 // The page's background, in the parts the image renderer understands. A photo background is

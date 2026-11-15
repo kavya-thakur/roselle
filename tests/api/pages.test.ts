@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { PUT as saveDraft } from "@/app/api/page/route";
@@ -8,10 +8,11 @@ import { POST as upload } from "@/app/api/media/route";
 import { POST as recordView } from "@/app/api/public/views/route";
 import { POST as report } from "@/app/api/report/route";
 import { POST as admin } from "@/app/api/admin/route";
+import { DELETE as deleteAccount } from "@/app/api/settings/account/route";
 import { FEATURES } from "@/lib/plans";
 import { getPublishedPage } from "@/lib/pages/publish";
 import { starterPage } from "@/lib/pages/blocks";
-import { block, cookieJar, createCreator, emails, params, read, request, settle, signInAs } from "./helpers";
+import { block, cookieJar, createCreator, emails, params, PASSWORD, read, request, settle, signInAs } from "./helpers";
 
 describe("saving and publishing", () => {
     it("saves the draft without changing what visitors see, until Publish", async () => {
@@ -113,6 +114,51 @@ describe("uploading an image", () => {
         expect((await send(new File(["<svg onload=alert(1)>"], "x.svg", { type: "image/svg+xml" }))).status).toBe(400);
         expect((await send(new File([new Uint8Array(4 * 1024 * 1024 + 1)], "huge.jpg", { type: "image/jpeg" }))).status).toBe(413);
         expect(await prisma.media.count()).toBe(0);
+    });
+
+    describe("on the live site, with Cloudinary", () => {
+        // what the app sends to Cloudinary, answered as Cloudinary would
+        let calls: { url: string; method: string; body: FormData | null; auth: string | null }[] = [];
+        beforeEach(() => {
+            calls = [];
+            vi.stubEnv("CLOUDINARY_URL", "cloudinary://123456:s3cret@roselle-demo");
+            vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+                calls.push({ url: String(input), method: init?.method ?? "GET", body: init?.body instanceof FormData ? init.body : null, auth: new Headers(init?.headers).get("authorization") });
+                return Response.json({ secure_url: "https://res.cloudinary.com/roselle-demo/image/upload/v1/roselle/localhost/u1/photo.webp" });
+            });
+        });
+        afterEach(() => {
+            vi.unstubAllEnvs();
+            vi.restoreAllMocks();
+        });
+
+        it("sends the photo to Cloudinary, signed, into the person's own folder, and keeps only its address", async () => {
+            const { user } = await createCreator("lena");
+            await signInAs(user.id);
+            const res = await read(await send(new File([new Uint8Array([1, 2, 3])], "photo.webp", { type: "image/webp" })));
+
+            expect(res.status).toBe(201);
+            expect(res.body.data.url).toMatch(/^https:\/\/res\.cloudinary\.com\//);
+            expect(await prisma.media.count()).toBe(0);
+            const [call] = calls;
+            expect(call.url).toBe("https://api.cloudinary.com/v1_1/roselle-demo/image/upload");
+            expect(call.body?.get("folder")).toBe(`roselle/localhost/u${user.id}`);
+            expect(call.body?.get("api_key")).toBe("123456");
+            // signed with the secret, which itself never leaves the server
+            expect(call.body?.get("signature")).toMatch(/^[0-9a-f]{40}$/);
+            expect([...call.body!.values()].join()).not.toContain("s3cret");
+        });
+
+        it("deletes the person's photos when they delete their account", async () => {
+            const { user } = await createCreator("lena");
+            await signInAs(user.id);
+            expect((await deleteAccount(request("/api/settings/account", { method: "DELETE", body: { password: PASSWORD } }))).status).toBe(200);
+            await settle();
+
+            const removal = calls.find((call) => call.method === "DELETE");
+            expect(removal?.url).toBe(`https://api.cloudinary.com/v1_1/roselle-demo/resources/image/upload?prefix=${encodeURIComponent(`roselle/localhost/u${user.id}/`)}`);
+            expect(removal?.auth).toBe(`Basic ${Buffer.from("123456:s3cret").toString("base64")}`);
+        });
     });
 });
 

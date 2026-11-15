@@ -15,6 +15,7 @@ import { ServicesBlock } from "./ServicesBlock";
 import { HireBar } from "./HireBar";
 import { CodeChip } from "./CodeChip";
 import { Carousel } from "./Carousel";
+import { sized } from "@/lib/media/sized";
 import { ShareButton } from "./ShareButton";
 import { SectionTitle } from "./SectionTitle";
 
@@ -207,7 +208,7 @@ function Poster({ profile, cta, live }: { profile: PageDoc["profile"]; cta?: Pro
             className="relative z-2 flex aspect-[4/5] min-h-[420px] w-full flex-col justify-end overflow-hidden text-center"
         >
             {photo ? (
-                <img src={photo} alt={profile.name} {...headerImage(live)} className="absolute inset-0 size-full object-cover object-[50%_25%] [mask-image:linear-gradient(to_bottom,black_50%,transparent_100%)]" />
+                <img src={sized(photo, 1000)} alt={profile.name} {...headerImage(live)} className="absolute inset-0 size-full object-cover object-[50%_25%] [mask-image:linear-gradient(to_bottom,black_50%,transparent_100%)]" />
             ) : (
                 <span className="absolute inset-0 bg-[color-mix(in_oklab,var(--page-text)_14%,transparent)]" />
             )}
@@ -234,7 +235,7 @@ function Banner({ src, live }: { src: string; live: boolean }) {
     return (
         <div className="relative z-1 h-44 w-full overflow-hidden rounded-b-[2rem] @md:h-64">
             {photo ? (
-                <img src={photo} alt="" {...headerImage(live)} className="size-full object-cover" />
+                <img src={sized(photo, 1200)} alt="" {...headerImage(live)} className="size-full object-cover" />
             ) : (
                 <span className="block size-full bg-[radial-gradient(120%_90%_at_85%_0%,color-mix(in_oklab,var(--page-muted)_55%,transparent),transparent_65%),linear-gradient(160deg,color-mix(in_oklab,var(--page-text)_22%,var(--page-base)),var(--page-base))]" />
             )}
@@ -292,7 +293,7 @@ function BlockView({ block, linkOf, pageId, reviews }: BlockViewProps) {
                 // a highlighted link with a picture: the picture big, the title under it
                 <a href={href} target="_blank" rel="noopener noreferrer" style={{ borderRadius: "min(var(--page-radius), 1.75rem)" }} className="page-button group block overflow-hidden p-2 font-semibold">
                     <span className="block aspect-[16/9] overflow-hidden rounded-[min(calc(var(--page-radius)-0.5rem),1.25rem)]">
-                        <img src={thumbnail} alt="" loading="lazy" className="size-full object-cover transition duration-700 ease-out group-hover:scale-[1.03]" />
+                        <img src={sized(thumbnail, 900)} alt="" loading="lazy" className="size-full object-cover transition duration-700 ease-out group-hover:scale-[1.03]" />
                     </span>
                     <span className="block px-3 pt-3 pb-2 text-center text-[15px] text-pretty">
                         {block.title || "Untitled link"}
@@ -308,7 +309,7 @@ function BlockView({ block, linkOf, pageId, reviews }: BlockViewProps) {
                 >
                     {/* the empty square keeps the title centred when there's no picture */}
                     {thumbnail ? (
-                        <img src={thumbnail} alt="" loading="lazy" className="size-10 shrink-0 rounded-[min(calc(var(--page-radius)*0.6),0.75rem)] object-cover" />
+                        <img src={sized(thumbnail, 120)} alt="" loading="lazy" className="size-10 shrink-0 rounded-[min(calc(var(--page-radius)*0.6),0.75rem)] object-cover" />
                     ) : icon ? (
                         <span className="flex size-10 shrink-0 items-center justify-center">
                             <LinkIcon name={icon} size={22} />
@@ -348,7 +349,7 @@ function BlockView({ block, linkOf, pageId, reviews }: BlockViewProps) {
             if (!src) return <Placeholder text="Add an image" />;
 
             const href = linkOf(block);
-            const picture = <img src={src} alt={block.alt} loading="lazy" className="w-full rounded-[min(var(--page-radius),1.5rem)] object-cover" />;
+            const picture = <img src={sized(src, 1200)} alt={block.alt} loading="lazy" className="w-full rounded-[min(var(--page-radius),1.5rem)] object-cover" />;
             return (
                 <figure>
                     {/* a picture that links somewhere goes there; one that doesn't opens full screen */}
@@ -390,7 +391,7 @@ function BlockView({ block, linkOf, pageId, reviews }: BlockViewProps) {
             // inside the column with the rest of the page, rounded, even gaps
             const corner = "rounded-[min(calc(var(--page-radius)*0.75),1rem)]";
             const picture = (image: (typeof images)[number], className = "") => (
-                <img src={safeHref(image.src)} alt={image.alt} loading="lazy" className={`size-full object-cover transition duration-700 ease-out @md:group-hover:scale-[1.04] ${className}`} />
+                <img src={sized(safeHref(image.src)!, 900)} alt={image.alt} loading="lazy" className={`size-full object-cover transition duration-700 ease-out @md:group-hover:scale-[1.04] ${className}`} />
             );
             const tile = (image: (typeof images)[number], className: string, key?: number) => (
                 <Zoom key={key} group={block.id} src={safeHref(image.src)!} alt={image.alt} className={`group overflow-hidden ${corner} ${className}`}>
@@ -430,7 +431,7 @@ function BlockView({ block, linkOf, pageId, reviews }: BlockViewProps) {
             const caseStudy = hasCaseStudy(block);
             const body = (
                 <>
-                    {image && <img src={image} alt="" loading="lazy" className="aspect-video w-full object-cover transition duration-700 group-hover:scale-[1.03]" />}
+                    {image && <img src={sized(image, 1200)} alt="" loading="lazy" className="aspect-video w-full object-cover transition duration-700 group-hover:scale-[1.03]" />}
                     <div className="p-5">
                         <div className="flex items-start justify-between gap-4">
                             <h3 style={{ fontWeight: "var(--page-title-weight)" }} className="font-(family-name:--page-title) text-xl leading-tight">{block.title}</h3>
@@ -655,7 +656,7 @@ function Pick({ item, href }: { item: Extract<Block, { type: "picks" }>["items"]
     const body = (
         <>
             <span className="block aspect-[4/5] overflow-hidden rounded-[min(var(--page-radius),1.25rem)] bg-[color-mix(in_oklab,var(--page-text)_8%,transparent)]">
-                <img src={safeHref(item.image)} alt={item.title} loading="lazy" className="size-full object-cover transition duration-700 ease-out group-hover:scale-[1.04]" />
+                <img src={sized(safeHref(item.image)!, 600)} alt={item.title} loading="lazy" className="size-full object-cover transition duration-700 ease-out group-hover:scale-[1.04]" />
             </span>
             {item.title && <span className="mt-2.5 block text-sm leading-snug font-semibold text-pretty">{item.title}</span>}
             {item.label && <span className="mt-0.5 block text-sm text-(--page-muted)">{item.label}</span>}
@@ -698,7 +699,7 @@ function Mosaic({ count, children: tile }: { count: number; children: (index: nu
 
 export function Zoom({ group, src, alt, className = "", children }: { group: string; src: string; alt: string; className?: string; children: ReactNode }) {
     return (
-        <button type="button" data-zoom={group} data-src={src} data-alt={alt} aria-label={alt ? `View larger: ${alt}` : "View larger"} className={`block w-full cursor-zoom-in ${className}`}>
+        <button type="button" data-zoom={group} data-src={sized(src, 2000)} data-alt={alt} aria-label={alt ? `View larger: ${alt}` : "View larger"} className={`block w-full cursor-zoom-in ${className}`}>
             {children}
         </button>
     );
@@ -725,7 +726,7 @@ function Avatar({ src, name, shape, centered, live }: { src: string; name: strin
             } ${centered ? "mx-auto" : ""}`}
         >
             {url ? (
-                <img src={url} alt={name} {...headerImage(live)} className="size-full object-cover" />
+                <img src={sized(url, 300)} alt={name} {...headerImage(live)} className="size-full object-cover" />
             ) : (
                 <span className="flex size-full items-center justify-center font-(family-name:--page-title) text-2xl">{initials}</span>
             )}

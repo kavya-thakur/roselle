@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db/prisma";
 import { POST as enquire } from "@/app/api/enquiry/route";
 import { DELETE as deleteEnquiry, PATCH as updateEnquiry } from "@/app/api/enquiry/[id]/route";
+import { ENQUIRY_EMAILS_A_DAY } from "@/lib/email/limits";
 import { block, createCreator, emails, params, read, request, settle, signInAs, signOut } from "./helpers";
 
 const services = block({
@@ -29,6 +30,23 @@ describe("a visitor enquires", () => {
         expect(emails).toHaveLength(1);
         expect(emails[0]).toMatchObject({ to: "lena@example.com", replyTo: { email: "priya@example.com", name: "Priya" } });
         expect(emails[0].text).toContain("About: Brand shoot (from ₹25,000)");
+    });
+
+    it("is always saved, but emailed only up to the day's limit, so spam can't use up the site's emails", async () => {
+        const { page } = await createCreator("lena", { blocks: [contact] });
+        const earlier = { pageId: page.id, name: "Someone", email: "s@example.com", message: "Hi" };
+        await prisma.enquiry.createMany({ data: Array.from({ length: ENQUIRY_EMAILS_A_DAY - 1 }, () => earlier) });
+
+        // the day's last emailed one
+        await send(page.id, { blockId: "ct" });
+        await settle();
+        expect(emails).toHaveLength(1);
+
+        // one more: in the inbox, not emailed
+        expect((await send(page.id, { blockId: "ct" })).status).toBe(201);
+        await settle();
+        expect(emails).toHaveLength(1);
+        expect(await prisma.enquiry.count()).toBe(ENQUIRY_EMAILS_A_DAY + 1);
     });
 
     it("through the contact form, with no service", async () => {

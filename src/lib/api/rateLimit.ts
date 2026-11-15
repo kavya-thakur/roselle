@@ -19,6 +19,9 @@ export function tooManyAttempts(key: string, limit: number, windowMs: number) {
     return entry.count > limit;
 }
 
+// Forgets every count. Only the tests call this, so one test's attempts never limit the next.
+export const clearAttempts = () => attempts.clear();
+
 // Who's asking, as far as we can tell: the first address in X-Forwarded-For (set by the
 // host's proxy when deployed), or "unknown" locally
 export function visitorOf(headers: Headers) {

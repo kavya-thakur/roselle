@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { handleRouteError } from "@/lib/api/http";
 import { tooManyAttempts } from "@/lib/api/rateLimit";
+import { cloudinary, uploadImage } from "@/lib/media/cloudinary";
 
 const MAX_BYTES = 4 * 1024 * 1024;
 
@@ -10,7 +11,9 @@ const MAX_BYTES = 4 * 1024 * 1024;
 // own domain.
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"];
 
-// An avatar or gallery picture from the editor. Answers with the address to put in the page.
+// An avatar or gallery picture from the editor. Answers with the address to put in the page:
+// a Cloudinary address when CLOUDINARY_URL is set (the live site), else /media/<id> with the
+// picture kept in the database (your own computer, the tests).
 export async function POST(req: NextRequest) {
     try {
         const user = await getCurrentUser();
@@ -31,6 +34,11 @@ export async function POST(req: NextRequest) {
         }
         if (file.size > MAX_BYTES) {
             return NextResponse.json({ ok: false, message: "Images can be up to 4 MB" }, { status: 413 });
+        }
+
+        const storage = cloudinary();
+        if (storage) {
+            return NextResponse.json({ ok: true, data: { url: await uploadImage(storage, file, user.id) } }, { status: 201 });
         }
 
         const media = await prisma.media.create({

@@ -1,3 +1,5 @@
+import { Pool } from "pg";
+import { attachDatabasePool } from "@vercel/functions";
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
@@ -7,9 +9,12 @@ const globalForPrisma = globalThis as unknown as {
     prismaClass: typeof PrismaClient | undefined;
 };
 
+// DATABASE_URL is Neon's pooled address. On Vercel, attachDatabasePool lets the function close
+// idle connections before it's suspended, so they don't pile up on Neon; elsewhere it does nothing.
 function createPrismaClient() {
-    const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
-    return new PrismaClient({ adapter });
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    attachDatabasePool(pool);
+    return new PrismaClient({ adapter: new PrismaPg(pool) });
 }
 
 // next dev reloads modules on every change; one client is kept across reloads, or each reload
