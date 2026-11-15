@@ -94,6 +94,8 @@ describe("tapping a link", () => {
 });
 
 describe("uploading an image", () => {
+    // the first bytes of a WebP file: enough for the server to know it's one
+    const WEBP = new TextEncoder().encode("RIFF\0\0\0\0WEBPVP8 ");
     const send = (file: File) => {
         const form = new FormData();
         form.append("file", file);
@@ -103,7 +105,7 @@ describe("uploading an image", () => {
     it("stores a photo and answers with its address", async () => {
         const { user } = await createCreator("lena");
         await signInAs(user.id);
-        const res = await read(await send(new File([new Uint8Array([1, 2, 3])], "photo.webp", { type: "image/webp" })));
+        const res = await read(await send(new File([WEBP], "photo.webp", { type: "image/webp" })));
         expect(res.status).toBe(201);
         expect(res.body.data.url).toMatch(/^\/media\/\w+$/);
     });
@@ -113,6 +115,15 @@ describe("uploading an image", () => {
         await signInAs(user.id);
         expect((await send(new File(["<svg onload=alert(1)>"], "x.svg", { type: "image/svg+xml" }))).status).toBe(400);
         expect((await send(new File([new Uint8Array(4 * 1024 * 1024 + 1)], "huge.jpg", { type: "image/jpeg" }))).status).toBe(413);
+        expect(await prisma.media.count()).toBe(0);
+    });
+
+    it("refuses a file that only claims to be a photo, with a reason people can act on", async () => {
+        const { user } = await createCreator("lena");
+        await signInAs(user.id);
+        const res = await read(await send(new File(["not a photo"], "renamed.jpg", { type: "image/jpeg" })));
+        expect(res.status).toBe(400);
+        expect(res.body.message).toMatch(/damaged or isn't really a photo/);
         expect(await prisma.media.count()).toBe(0);
     });
 
@@ -135,7 +146,7 @@ describe("uploading an image", () => {
         it("sends the photo to Cloudinary, signed, into the person's own folder, and keeps only its address", async () => {
             const { user } = await createCreator("lena");
             await signInAs(user.id);
-            const res = await read(await send(new File([new Uint8Array([1, 2, 3])], "photo.webp", { type: "image/webp" })));
+            const res = await read(await send(new File([WEBP], "photo.webp", { type: "image/webp" })));
 
             expect(res.status).toBe(201);
             expect(res.body.data.url).toMatch(/^https:\/\/res\.cloudinary\.com\//);

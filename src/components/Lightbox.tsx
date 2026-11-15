@@ -2,6 +2,7 @@
 /* eslint-disable @next/next/no-img-element -- creators' images come from any host */
 
 import { useEffect, useRef, useState } from "react";
+import { useBackToClose } from "./useBackToClose";
 import { IconChevronLeft, IconChevronRight, IconX } from "@tabler/icons-react";
 
 type Photo = { src: string; alt: string };
@@ -14,6 +15,9 @@ export function Lightbox() {
     const dialog = useRef<HTMLDialogElement>(null);
     const [photos, setPhotos] = useState<Photo[]>([]);
     const [index, setIndex] = useState(0);
+    // Back closes the photo instead of leaving the creator's page
+    const [open, setOpen] = useState(false);
+    useBackToClose(open, () => dialog.current?.close());
     const swipeFrom = useRef<number | null>(null);
 
     useEffect(() => {
@@ -24,6 +28,7 @@ export function Lightbox() {
             setPhotos(group.map((element) => ({ src: element.dataset.src!, alt: element.dataset.alt ?? "" })));
             setIndex(group.indexOf(trigger));
             dialog.current?.showModal();
+            setOpen(true);
         }
         document.addEventListener("click", open);
         return () => document.removeEventListener("click", open);
@@ -37,6 +42,7 @@ export function Lightbox() {
         <dialog
             ref={dialog}
             aria-label="Photo viewer"
+            onClose={() => setOpen(false)}
             onKeyDown={(event) => {
                 if (event.key === "ArrowRight") go(1);
                 if (event.key === "ArrowLeft") go(-1);

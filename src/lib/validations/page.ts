@@ -149,10 +149,25 @@ export const themeSchema = z.object({
         image: url,
         // "pattern": a printed repeat in the second colour on the first (src/lib/pages/patterns.ts)
         pattern: z.enum(PATTERN_KEYS).default("dots"),
+        // how strong the print is, 10-100%: a busy pattern faded right down sits quietly behind text
+        patternStrength: z.number().int().min(10).max(100).optional(),
     }),
     text: color,
     muted: color,
     font: z.object({ heading: fontKey, body: fontKey }),
+    // How headings and text are set. Missing (every page before this) = the font's own weight, medium sizes.
+    type: z
+        .object({
+            // "auto" = the weight each font is drawn to be read at (FONTS[...].weight)
+            headingWeight: z.enum(["auto", "regular", "bold", "heavy"]),
+            headingSize: z.enum(["small", "medium", "large"]),
+            textSize: z.enum(["small", "medium", "large"]),
+            textWeight: z.enum(["regular", "bold"]),
+        })
+        .optional(),
+    // The boxes (services, the contact form, reviews, projects): a colour and how solid it is,
+    // 0-100%. "" = the text colour. Missing = the text colour at 5%, a faint see-through box.
+    card: z.object({ color: color.or(z.literal("")), fill: z.number().int().min(0).max(100) }).optional(),
     button: z.object({
         // "pop": a solid button with a thick outline and a hard offset shadow, like a sticker
         style: z.enum(["solid", "outline", "soft", "glass", "pop"]),

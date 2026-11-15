@@ -31,7 +31,7 @@ export function ServicesBlock({ block, pageId }: { block: Services; pageId?: num
                             {item.name}
                         </h3>
                         {item.price && <p className="mt-1.5 text-lg font-semibold tabular-nums">{item.price}</p>}
-                        {item.description && <p className="mt-2 text-sm leading-relaxed whitespace-pre-line text-pretty text-(--page-muted)">{item.description}</p>}
+                        {item.description && <p className="page-prose page-prose-small mt-2 leading-relaxed whitespace-pre-line text-pretty text-(--page-muted)">{item.description}</p>}
 
                         <button
                             type="button"

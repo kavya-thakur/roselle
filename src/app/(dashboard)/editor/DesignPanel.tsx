@@ -2,26 +2,31 @@
 /* eslint-disable @next/next/no-img-element -- the avatar can come from any host */
 
 import { Dropdown } from "@/components/Dropdown";
+import { useBackToClose } from "@/components/useBackToClose";
 import { useState, type ReactNode, type Dispatch, type SetStateAction } from "react";
-import { IconArrowLeft, IconArrowsShuffle, IconChevronRight, IconColorPicker, IconPhoto } from "@tabler/icons-react";
+import { IconAlertTriangle, IconArrowLeft, IconArrowsShuffle, IconChevronRight, IconColorPicker, IconPhoto } from "@tabler/icons-react";
 
 import { FONTS, TEMPLATES } from "@/lib/pages/theme";
 import { PATTERN_KEYS, PATTERN_LABELS, patternBackground } from "@/lib/pages/patterns";
 import type { PageDoc, Theme } from "@/lib/validations/page";
 import { smallInputClass } from "@/components/Field";
 import { toast } from "@/components/Toast";
-import { dominantColour, themeFromColour } from "@/lib/pages/colour";
+import { boxColour, dominantColour, patternInk, readabilityIssues, themeFromColour } from "@/lib/pages/colour";
 import { safeHref } from "@/lib/pages/links";
 import { ColorPill, FieldRow, ImageInput, Label, Segmented, StyleTiles, Toggle } from "./controls";
 
 type FontKey = keyof typeof FONTS;
-type Part = "theme" | "wallpaper" | "buttons" | "text" | "seo";
+type Part = "theme" | "wallpaper" | "buttons" | "boxes" | "text" | "seo";
 
 const FONT_OPTIONS = Object.entries(FONTS) as [FontKey, (typeof FONTS)[FontKey]][];
 // a script face is for a name or a heading; a paragraph of it is hard to read
-const BODY_FONTS = FONT_OPTIONS.filter(([, font]) => !("script" in font));
+// (nor of tall poster capitals)
+const BODY_FONTS = FONT_OPTIONS.filter(([, font]) => !("script" in font) && !("display" in font));
 const BACKGROUND_NAMES = { solid: "Solid colour", gradient: "Gradient", glow: "Glow", image: "Photo", pattern: "Pattern" };
 const BUTTON_NAMES = { pop: "Sticker", solid: "Solid", outline: "Outline", soft: "Soft", glass: "Glass" };
+// what a page saved before these settings existed looks like
+const DEFAULT_TYPE: NonNullable<Theme["type"]> = { headingWeight: "auto", headingSize: "medium", textSize: "medium", textWeight: "regular" };
+const DEFAULT_CARD: NonNullable<Theme["card"]> = { color: "", fill: 5 };
 
 // The main colour of the lower middle of a photo: where, in a poster header, the picture melts
 // into the page. Read from a small copy drawn on a canvas.
@@ -43,7 +48,7 @@ function swatchOf(theme: Theme) {
     const [base, middle, light] = theme.background.colors;
     if (theme.background.kind === "image") return `linear-gradient(${base}8c, ${base}8c), url("${theme.background.image}") center / cover`;
     if (theme.background.kind === "solid") return base;
-    if (theme.background.kind === "pattern") return patternBackground(theme.background.pattern, base, middle);
+    if (theme.background.kind === "pattern") return patternBackground(theme.background.pattern, base, patternInk(theme.background));
     return `linear-gradient(160deg, ${base}, ${middle}, ${light})`;
 }
 
@@ -51,6 +56,8 @@ function swatchOf(theme: Theme) {
 // "Buttons · Sticker" at a glance beats scrolling through every control at once.
 export function DesignPanel({ page, onChange: onPageChange }: { page: PageDoc; onChange: Dispatch<SetStateAction<PageDoc>> }) {
     const [part, setPart] = useState<Part | null>(null);
+    // Back (the gesture, the button) goes from a part to the list, like the arrow beside its title
+    useBackToClose(part !== null, () => setPart(null));
     const { theme, seo, profile } = page;
     // applied to the latest page (see HeaderPanel), so a background photo still uploading can't undo other changes
     const onChange = (next: Theme) => onPageChange((current) => ({ ...current, theme: next }));
@@ -59,9 +66,40 @@ export function DesignPanel({ page, onChange: onPageChange }: { page: PageDoc; o
     const setSeo = (patch: Partial<PageDoc["seo"]>) => onPageChange((current) => ({ ...current, seo: { ...current.seo, ...patch } }));
     const templateName = TEMPLATES.find((template) => JSON.stringify(template.theme) === JSON.stringify(theme))?.name ?? "Custom";
 
+    const issues = readabilityIssues(theme);
+    const type = theme.type ?? DEFAULT_TYPE;
+    const card = theme.card ?? DEFAULT_CARD;
+
     if (part === null) {
         return (
             <div className="space-y-2.5">
+                {/* text visitors would struggle to read, with a one-tap fix for each */}
+                {issues.length > 0 && (
+                    <div role="status" className="mb-4 space-y-3 rounded-2xl border border-[#f2c94c] bg-[#fff8e1] p-3.5">
+                        {issues.map((issue) => (
+                            <div key={issue.id}>
+                                <p className="flex gap-2 text-sm font-semibold">
+                                    <IconAlertTriangle size={18} className="mt-px shrink-0 text-[#b7791f]" /> {issue.message}
+                                </p>
+                                <div className="mt-2 flex flex-wrap gap-1.5 pl-6.5">
+                                    {issue.fixes.map((fix) => (
+                                        <button
+                                            key={fix.label}
+                                            onClick={() => {
+                                                onPageChange((current) => ({ ...current, theme: fix.apply(current.theme) }));
+                                                toast("Fixed", { detail: "Undo brings the old look back." });
+                                            }}
+                                            className="h-8 rounded-full bg-ink px-3.5 text-xs font-semibold text-white transition hover:bg-[#2e2e2e]"
+                                        >
+                                            {fix.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 <Row label="Theme" value={templateName} onClick={() => setPart("theme")} swatch={<span className="block size-full" style={{ background: swatchOf(theme) }} />} />
 
                 <p className="px-1 pt-4 pb-1 text-xs font-bold tracking-[0.14em] text-faint uppercase">Customise</p>
@@ -71,6 +109,16 @@ export function DesignPanel({ page, onChange: onPageChange }: { page: PageDoc; o
                     value={BUTTON_NAMES[theme.button.style]}
                     onClick={() => setPart("buttons")}
                     swatch={<span className="m-auto block h-3 w-6 rounded-full border-2" style={{ background: theme.button.color, borderColor: theme.button.style === "pop" ? theme.button.textColor : theme.button.color }} />}
+                />
+                <Row
+                    label="Boxes"
+                    value={card.color ? `${card.fill}% solid` : "See-through"}
+                    onClick={() => setPart("boxes")}
+                    swatch={
+                        <span className="flex size-full items-center justify-center" style={{ background: swatchOf(theme) }}>
+                            <span className="h-5 w-7 rounded-md border" style={{ background: boxColour(theme), borderColor: `${theme.text}33` }} />
+                        </span>
+                    }
                 />
                 <Row
                     label="Text"
@@ -89,7 +137,7 @@ export function DesignPanel({ page, onChange: onPageChange }: { page: PageDoc; o
         );
     }
 
-    const titles: Record<Part, string> = { theme: "Theme", wallpaper: "Wallpaper", buttons: "Buttons", text: "Text", seo: "Search & sharing" };
+    const titles: Record<Part, string> = { theme: "Theme", wallpaper: "Wallpaper", buttons: "Buttons", boxes: "Boxes", text: "Text", seo: "Search & sharing" };
 
     return (
         <div className="animate-[fade-in_0.25s_ease-out]">
@@ -199,9 +247,28 @@ export function DesignPanel({ page, onChange: onPageChange }: { page: PageDoc; o
                                 options={PATTERN_KEYS.map((key) => ({
                                     value: key,
                                     label: PATTERN_LABELS[key],
-                                    preview: <span className="size-full" style={{ background: patternBackground(key, theme.background.colors[0], theme.background.colors[1]) }} />,
+                                    preview: <span className="size-full" style={{ background: patternBackground(key, theme.background.colors[0], patternInk(theme.background)) }} />,
                                 }))}
                             />
+                            <div className="mt-5">
+                                <div className="mb-1 flex items-baseline justify-between">
+                                    <label htmlFor="pattern-strength" className="text-[15px] font-semibold">
+                                        Pattern strength
+                                    </label>
+                                    <span className="text-xs text-muted tabular-nums">{theme.background.patternStrength ?? 100}%</span>
+                                </div>
+                                <p className="mb-2 text-xs text-muted">Turn it down so a busy pattern sits quietly behind your text.</p>
+                                <input
+                                    id="pattern-strength"
+                                    type="range"
+                                    min={10}
+                                    max={100}
+                                    step={5}
+                                    value={theme.background.patternStrength ?? 100}
+                                    onChange={(event) => setBackground({ patternStrength: Number(event.target.value) })}
+                                    className="w-full accent-ink"
+                                />
+                            </div>
                         </>
                     )}
 
@@ -291,9 +358,82 @@ export function DesignPanel({ page, onChange: onPageChange }: { page: PageDoc; o
                             onChange={(titles) => set("layout", { ...theme.layout, titles })}
                         />
                     </div>
+                    <div>
+                        <Label>Heading weight</Label>
+                        <Segmented
+                            label="Heading weight"
+                            value={type.headingWeight}
+                            options={[
+                                { value: "auto", label: "Font's own" },
+                                { value: "regular", label: "Regular" },
+                                { value: "bold", label: "Bold" },
+                                { value: "heavy", label: "Heavy" },
+                            ]}
+                            onChange={(headingWeight) => set("type", { ...type, headingWeight })}
+                        />
+                        {/* some faces only come in one weight; say so rather than look broken */}
+                        {type.headingWeight !== "auto" && ["dm-serif", "instrument-serif", "bebas", "pinyon"].includes(theme.font.heading) && (
+                            <p className="mt-1.5 text-xs text-muted">{FONTS[theme.font.heading].label} comes in one weight only, so this changes little.</p>
+                        )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <Label>Heading size</Label>
+                            <SizePicker value={type.headingSize} onChange={(headingSize) => set("type", { ...type, headingSize })} label="Heading size" />
+                        </div>
+                        <div>
+                            <Label>Text size</Label>
+                            <SizePicker value={type.textSize} onChange={(textSize) => set("type", { ...type, textSize })} label="Text size" />
+                        </div>
+                    </div>
+                    <Toggle label="Bold text (bio, text blocks, descriptions)" checked={type.textWeight === "bold"} onChange={(bold) => set("type", { ...type, textWeight: bold ? "bold" : "regular" })} />
                     <div className="flex gap-2">
                         <ColorInput label="Text" value={theme.text} onChange={(text) => set("text", text)} />
                         <ColorInput label="Quiet text" value={theme.muted} onChange={(muted) => set("muted", muted)} />
+                    </div>
+                </div>
+            )}
+
+            {part === "boxes" && (
+                <div className="space-y-5">
+                    <p className="text-sm text-muted">The cards behind your services, contact form, reviews and projects. Make them solid when your wallpaper is busy.</p>
+                    {/* quick starting points; everything can be fine-tuned below */}
+                    <div className="grid grid-cols-3 gap-2.5">
+                        {[
+                            { label: "See-through", value: DEFAULT_CARD },
+                            { label: "Soft", value: { color: "#ffffff", fill: 55 } },
+                            { label: "Solid", value: { color: theme.background.colors[0], fill: 94 } },
+                        ].map((preset) => {
+                            const chosen = card.color === preset.value.color && card.fill === preset.value.fill;
+                            return (
+                                <button
+                                    key={preset.label}
+                                    onClick={() => set("card", preset.value)}
+                                    aria-pressed={chosen}
+                                    className={`flex flex-col items-center gap-2 rounded-2xl border bg-paper p-2 pb-2.5 text-[13px] font-medium transition ${chosen ? "border-ink ring-1 ring-ink" : "border-line hover:border-line-strong"}`}
+                                >
+                                    <span className="flex h-14 w-full items-center justify-center overflow-hidden rounded-xl" style={{ background: swatchOf(theme) }}>
+                                        <span className="h-8 w-14 rounded-lg border" style={{ background: boxColour({ ...theme, card: preset.value }), borderColor: `${theme.text}33` }} />
+                                    </span>
+                                    {preset.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <div className="divide-y divide-line border-t border-line">
+                        <FieldRow label="Box colour" hint={card.color ? undefined : "Now: your text colour"}>
+                            <div className="flex items-center gap-2 sm:justify-end">
+                                <ColorPill label="Box colour" value={card.color || theme.text} onChange={(color) => set("card", { color, fill: card.color ? card.fill : 80 })} />
+                                {card.color && (
+                                    <button onClick={() => set("card", { ...card, color: "" })} className="text-xs font-semibold text-pink hover:underline">
+                                        Reset
+                                    </button>
+                                )}
+                            </div>
+                        </FieldRow>
+                        <FieldRow label="How solid" htmlFor="card-fill" hint={`${card.fill}%`}>
+                            <input id="card-fill" type="range" min={0} max={100} step={5} value={card.fill} onChange={(event) => set("card", { ...card, fill: Number(event.target.value) })} className="mt-3 w-full accent-ink" />
+                        </FieldRow>
                     </div>
                 </div>
             )}
@@ -363,5 +503,21 @@ function FontSelect({ label, value, onChange, options = FONT_OPTIONS }: { label:
                 onChange={(key) => onChange(key as FontKey)}
             />
         </div>
+    );
+}
+
+// Small, medium or large
+function SizePicker({ value, onChange, label }: { value: "small" | "medium" | "large"; onChange: (value: "small" | "medium" | "large") => void; label: string }) {
+    return (
+        <Segmented
+            label={label}
+            value={value}
+            options={[
+                { value: "small", label: "S" },
+                { value: "medium", label: "M" },
+                { value: "large", label: "L" },
+            ]}
+            onChange={onChange}
+        />
     );
 }

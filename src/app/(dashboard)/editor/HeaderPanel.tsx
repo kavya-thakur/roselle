@@ -2,12 +2,14 @@
 /* eslint-disable @next/next/no-img-element -- the avatar can come from any host */
 
 import { useRef, useState, type Dispatch, type SetStateAction } from "react";
-import { IconLoader2, IconPlus, IconTrash, IconX } from "@tabler/icons-react";
+import { IconCrop, IconLoader2, IconPlus, IconTrash, IconX } from "@tabler/icons-react";
 
 import { SOCIAL_LABELS, SocialIcon } from "@/components/SocialIcon";
 import { safeHref } from "@/lib/pages/links";
 import { SOCIALS, type PageDoc, type Theme } from "@/lib/validations/page";
 import { FieldRow, ImageInput, StyleTiles, uploadImage } from "./controls";
+import { PhotoEditor } from "./PhotoEditor";
+import { useBackToClose } from "@/components/useBackToClose";
 
 const field = "w-full rounded-xl border border-line bg-paper px-4 text-[15px] outline-none transition focus:border-ink";
 
@@ -24,6 +26,8 @@ export function HeaderPanel({ page, onChange }: { page: PageDoc; onChange: Dispa
     const [uploading, setUploading] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [picking, setPicking] = useState(false);
+    const [cropping, setCropping] = useState(false);
+    useBackToClose(cropping, () => setCropping(false));
 
     async function changePhoto(file: File) {
         setUploading(true);
@@ -120,6 +124,21 @@ export function HeaderPanel({ page, onChange }: { page: PageDoc; onChange: Dispa
                                 {uploading ? <IconLoader2 size={13} className="animate-spin" /> : <IconPlus size={14} />}
                             </span>
                         </button>
+                        {avatar && (
+                            <button onClick={() => setCropping(true)} disabled={uploading} aria-label="Crop or rotate the profile image" title="Crop or rotate" className="flex size-9 items-center justify-center rounded-full text-muted hover:bg-sand hover:text-ink">
+                                <IconCrop size={16} />
+                            </button>
+                        )}
+                        {cropping && (
+                            <PhotoEditor
+                                source={profile.avatar}
+                                onCancel={() => setCropping(false)}
+                                onDone={(file) => {
+                                    setCropping(false);
+                                    changePhoto(file);
+                                }}
+                            />
+                        )}
                         {avatar && (
                             <button onClick={() => setProfile({ avatar: "" })} aria-label="Remove the profile image" className="flex size-9 items-center justify-center rounded-full text-muted hover:bg-sand hover:text-ink">
                                 <IconTrash size={16} />

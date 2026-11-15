@@ -1,5 +1,6 @@
 "use client";
 
+import { useBackToClose } from "@/components/useBackToClose";
 import { useEffect, useRef, useState } from "react";
 import {
     IconAlignLeft,
@@ -59,6 +60,7 @@ const SUGGESTED: { platform: Social; title: string; hint: string; url: string }[
 // The "Add" window: paste a link and press Enter, or pick what kind of block to add.
 // A native <dialog>, so Esc, the backdrop and keeping focus inside come for free.
 export function AddDialog({ open, onClose, onAdd }: { open: boolean; onClose: () => void; onAdd: (block: Block) => void }) {
+    useBackToClose(open, onClose);
     const ref = useRef<HTMLDialogElement>(null);
     const [query, setQuery] = useState("");
 
