@@ -7,8 +7,10 @@ import { sendEmail } from "@/lib/email/send";
 import { refreshPublicPage } from "@/lib/pages/publish";
 import { SITE_URL } from "@/lib/site";
 import { adminActionSchema } from "@/lib/validations/report";
+import { planNow } from "@/lib/plans";
 
-// Taking a page down, putting it back, or dismissing a report. Admins only (ADMIN_EMAILS).
+// Taking a page down, putting it back, dismissing a report, or giving and ending Pro by hand.
+// Admins only (ADMIN_EMAILS).
 export async function POST(req: NextRequest) {
     try {
         const user = await getCurrentUser();
@@ -19,6 +21,25 @@ export async function POST(req: NextRequest) {
         const parsed = await parseBody(req, adminActionSchema);
         if (!parsed.success) return parsed.response;
         const body = parsed.data;
+
+        if (body.action === "grantPro" || body.action === "endPro") {
+            const account = await prisma.user.findUnique({ where: { id: body.userId }, select: { plan: true, proUntil: true, page: { select: { username: true } } } });
+            if (!account) return NextResponse.json({ ok: false, message: "That account is gone" }, { status: 404 });
+
+            const running = planNow(account.plan, account.proUntil) === "PRO" ? account.proUntil : null;
+            const from = running && running > new Date() ? running : new Date();
+            await prisma.user.update({
+                where: { id: body.userId },
+                data:
+                    body.action === "endPro"
+                        ? { plan: "FREE", proUntil: null }
+                        : // a fresh end date also means a fresh set of "ends soon" emails
+                          { plan: "PRO", proUntil: body.days === null ? null : new Date(from.getTime() + body.days * 24 * 60 * 60 * 1000), billingReminderKey: null },
+            });
+            // the badge comes or goes on their page straight away
+            if (account.page) refreshPublicPage(account.page.username);
+            return NextResponse.json({ ok: true });
+        }
 
         if (body.action === "dismiss") {
             await prisma.report.update({ where: { id: body.reportId }, data: { resolvedAt: new Date() } });
