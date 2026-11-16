@@ -366,3 +366,32 @@ export const TEMPLATES: { id: string; name: string; theme: Theme }[] = [
 
 // The looks the landing page shows off: everything with a poster or banner header
 export const SHOWCASE = TEMPLATES.filter((template) => template.theme.layout.header !== "classic");
+
+// A template put on a page: its colours, wallpaper, fonts and buttons, but the choices made in
+// the Header section (the header style, the photo's shape, centred or left) and the text size and
+// weight stay the creator's own. Picking a look shouldn't undo how they set up the top of their page.
+export function wearTemplate(current: Theme, template: Theme): Theme {
+    const { header, avatar, align } = current.layout;
+    return {
+        ...template,
+        layout: { ...template.layout, header, avatar, align },
+        ...(current.type && { type: current.type }),
+    };
+}
+
+// The same theme, whatever order the keys were saved in (a draft read back from the database
+// isn't in the order the templates are written in)
+const canonical = (value: unknown): unknown =>
+    Array.isArray(value)
+        ? value.map(canonical)
+        : value && typeof value === "object"
+          ? Object.fromEntries(
+                Object.entries(value)
+                    .filter(([, entry]) => entry !== undefined)
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([key, entry]) => [key, canonical(entry)]),
+            )
+          : value;
+
+// The template this page is wearing, if any: putting it on again would change nothing
+export const templateOf = (theme: Theme) => TEMPLATES.find((template) => JSON.stringify(canonical(wearTemplate(theme, template.theme))) === JSON.stringify(canonical(theme)));
