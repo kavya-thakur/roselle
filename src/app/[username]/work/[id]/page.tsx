@@ -107,9 +107,11 @@ export default async function CaseStudyPage({ params }: PageProps<"/[username]/w
                 <Link href={`/${page.username}`} className="font-semibold opacity-80 hover:opacity-100">
                     More from {profile.name || page.username}
                 </Link>
-                <p className="mt-3 tracking-[0.18em] uppercase opacity-60">
-                    Composed with <span className="font-display text-sm tracking-normal normal-case">Roselle</span>
-                </p>
+                {!page.pro && (
+                    <p className="mt-3 tracking-[0.18em] uppercase opacity-60">
+                        Composed with <span className="font-display text-sm tracking-normal normal-case">Roselle</span>
+                    </p>
+                )}
             </footer>
             <Lightbox />
         </div>

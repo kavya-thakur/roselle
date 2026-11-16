@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db/prisma";
+import { planNow } from "@/lib/plans";
 import { hashToken, SESSION_COOKIE } from "./session";
 
 // Who's signed in, with their page; null when nobody is.
@@ -21,6 +22,7 @@ export const getCurrentUser = cache(async () => {
                     id: true,
                     email: true,
                     plan: true,
+                    proUntil: true,
                     onboardedAt: true,
                     currency: true,
                     monthlyGoal: true,
@@ -37,5 +39,6 @@ export const getCurrentUser = cache(async () => {
         return null;
     }
 
-    return { ...session.user, page: session.user.page };
+    // the plan right now: paid Pro that has run out is Free again, without anything having to change it
+    return { ...session.user, plan: planNow(session.user.plan, session.user.proUntil), page: session.user.page };
 });

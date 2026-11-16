@@ -28,6 +28,8 @@ export function ArrangeView({ page, onChange, reviews }: { page: PageDoc; onChan
             page={page}
             mode="preview"
             reviews={reviews}
+            // arranging is about the blocks; the foot of the page is left out
+            badge={false}
             wrap={(block, index, view) => {
                 const label = BLOCK_TYPES.find((type) => type.type === block.type)?.label ?? "Block";
                 const photos = "images" in block ? block.images : null;

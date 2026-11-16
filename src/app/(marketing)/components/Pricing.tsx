@@ -1,15 +1,16 @@
 import { IconCheck } from "@tabler/icons-react";
 
 import { Pill } from "./Pill";
-import { featuresOf } from "@/lib/plans";
+import { featuresOf, PRO_PLANS } from "@/lib/plans";
+import { formatMoney } from "@/lib/utils/format";
 
-// Read from src/lib/plans.ts, so this never promises what the app doesn't do. While nothing is
+// Read from src/lib/plans.ts (features and prices), so this never promises what the app doesn't do. While nothing is
 // Pro yet, the Pro card says so instead of a price, and both buttons just start a free page.
 const proFeatures = featuresOf(true);
 const PLANS = [
     {
         name: "Free",
-        price: "$0",
+        price: "₹0",
         per: "forever",
         blurb: "Everything to get a good page live.",
         features: ["One page", "Unlimited links & blocks", "Every template", "A QR code for your page", ...featuresOf(false)],
@@ -17,9 +18,9 @@ const PLANS = [
     },
     {
         name: "Pro",
-        price: proFeatures.length ? "$8" : "Soon",
-        per: proFeatures.length ? "a month" : "",
-        blurb: proFeatures.length ? "For creators whose page does real work." : "Extras for pages that do real work are on the way. Until then, it's all free.",
+        price: proFeatures.length ? formatMoney(PRO_PLANS.monthly.price, "INR") : "Soon",
+        per: proFeatures.length ? `a month, or ${formatMoney(PRO_PLANS.yearly.price, "INR")} a year` : "",
+        blurb: proFeatures.length ? "Only your name on your page." : "Extras for pages that do real work are on the way. Until then, it's all free.",
         features: ["Everything in Free", ...(proFeatures.length ? proFeatures : ["More on the way"])],
         cta: proFeatures.length ? "Go Pro" : "Start free",
         highlight: true,

@@ -25,6 +25,11 @@ model User {
   monthlyGoal     Int?
   // the Monday email with last week's numbers
   weeklyEmail     Boolean   @default(true)
+  // Pro is paid a month or a year at a time through Razorpay (src/lib/billing.ts), and lasts until
+  // proUntil; paying again adds on. A PRO account with no proUntil was made Pro by hand and doesn't end.
+  proUntil           DateTime?
+  // the last "Pro ends soon" email sent, so each one goes once (src/lib/billing.ts, remindEndingPro)
+  billingReminderKey String?
   // where clients pay them: a payment page address or a UPI id, remembered from the last request
   paymentLink     String?
   // set when they click the link in the welcome email; nothing is blocked before that
@@ -37,6 +42,26 @@ model User {
   sessions Session[]
   media    Media[]
   tokens   Token[]
+  payments Payment[]
+}
+
+// A Razorpay payment for Pro. The payment id is unique, so the browser and Razorpay's webhook
+// reporting the same payment count it once.
+model Payment {
+  id                Int      @id @default(autoincrement())
+  userId            Int
+  razorpayOrderId   String
+  razorpayPaymentId String   @unique
+  // "monthly" or "yearly", and what was paid, in paise
+  period            String
+  amount            Int
+  // Pro ran until then after this payment
+  paidUntil         DateTime
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 enum TokenKind {

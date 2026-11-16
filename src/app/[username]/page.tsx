@@ -49,7 +49,7 @@ export default async function CreatorPage({ params }: PageProps<"/[username]">) 
         <div className="flex min-h-dvh flex-1 flex-col">
             {/* who this is, for search engines (src/lib/pages/structuredData.ts) */}
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(profileJsonLd(page.doc, page.username)) }} />
-            <PageRenderer page={page.doc} pageId={page.id} username={page.username} reviews={reviews} />
+            <PageRenderer page={page.doc} pageId={page.id} username={page.username} reviews={reviews} badge={!page.pro} />
             <TrackView pageId={page.id} />
             <Lightbox />
             {/* on a computer: a QR code to carry the page over to a phone, where it's made to be read */}

@@ -56,6 +56,8 @@ interface EditorViewProps {
     initialPublishedAt: string | null;
     clicks: Record<string, number>;
     reviews: PublicReview[];
+    // on Pro: the preview has no Roselle badge, as the live page doesn't
+    pro: boolean;
 }
 
 // The whole editor, laid out like a workbench: the sections on a rail at the left, the one
@@ -66,7 +68,7 @@ interface EditorViewProps {
 // Every change is saved as a draft a moment later; Publish makes the draft what visitors see.
 // Any change can be undone and redone (the buttons in the top bar, or ⌘Z / ⇧⌘Z), and the whole
 // draft can be put back to the original with "Discard changes", after a confirmation.
-export function EditorView({ username, initialDraft, initialPublished, initialPublishedAt, clicks, reviews }: EditorViewProps) {
+export function EditorView({ username, initialDraft, initialPublished, initialPublishedAt, clicks, reviews, pro }: EditorViewProps) {
     const router = useRouter();
     const [history, setHistory] = useState(() => start(initialDraft));
     const page = history.present;
@@ -81,7 +83,7 @@ export function EditorView({ username, initialDraft, initialPublished, initialPu
     const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
     // the preview with a bar on each block to drag, move and hide it, and order a gallery's photos
     const [arranging, setArranging] = useState(false);
-    const preview = arranging ? <ArrangeView page={page} onChange={setPage} reviews={reviews} /> : <PageRenderer page={page} mode="preview" reviews={reviews} />;
+    const preview = arranging ? <ArrangeView page={page} onChange={setPage} reviews={reviews} /> : <PageRenderer page={page} mode="preview" reviews={reviews} badge={pro ? false : "upgrade"} />;
     const [menuOpen, setMenuOpen] = useState(false);
     // phones and tablets: the page opens full screen from the bottom bar instead of sitting beside the card
     const [previewOpen, setPreviewOpen] = useState(false);
