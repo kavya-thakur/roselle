@@ -7,6 +7,7 @@ import { QrCode } from "@/components/QrCode";
 import { SITE_URL } from "@/lib/site";
 import { getPublishedPage } from "@/lib/pages/publish";
 import { getApprovedReviews } from "@/lib/reviews";
+import { jsonLdScript, profileJsonLd } from "@/lib/pages/structuredData";
 import { TrackView } from "./TrackView";
 
 // Rendered once and kept, so a visit is just a file served. Kept for a minute at most, which is
@@ -46,6 +47,8 @@ export default async function CreatorPage({ params }: PageProps<"/[username]">) 
 
     return (
         <div className="flex min-h-dvh flex-1 flex-col">
+            {/* who this is, for search engines (src/lib/pages/structuredData.ts) */}
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(profileJsonLd(page.doc, page.username)) }} />
             <PageRenderer page={page.doc} pageId={page.id} username={page.username} reviews={reviews} />
             <TrackView pageId={page.id} />
             <Lightbox />

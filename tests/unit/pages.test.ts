@@ -8,6 +8,8 @@ import { PATTERN_KEYS, patternBackground } from "@/lib/pages/patterns";
 import { usernameSchema } from "@/lib/validations/common";
 import { DEMO_PAGES } from "@/lib/pages/demo";
 import { setupChecklist } from "@/lib/pages/checklist";
+import { jsonLdScript, profileJsonLd } from "@/lib/pages/structuredData";
+import { SITE_URL } from "@/lib/site";
 
 describe("safeHref", () => {
     it("never lets a script address through", () => {
@@ -523,5 +525,26 @@ describe("putting on a template", () => {
         expect(templateOf(JSON.parse(JSON.stringify(worn, Object.keys(worn).reverse().concat(Object.keys(worn.layout), Object.keys(worn.background), Object.keys(worn.font), Object.keys(worn.button), Object.keys(worn.type!)))))?.id).toBe(second.id);
         // changed by hand: not that template any more
         expect(templateOf({ ...worn, text: "#123456" })).toBeUndefined();
+    });
+});
+
+describe("what a page tells search engines", () => {
+    const doc = pageSchema.parse({
+        profile: { name: "Lena <Studio>", bio: "Portraits in Jaipur", avatar: "/media/abc", cover: "", socials: [{ platform: "instagram", url: "https://instagram.com/lena" }, { platform: "email", url: "mailto:l@x.com" }] },
+        theme: TEMPLATES[0].theme,
+        blocks: [
+            { id: "sv", type: "services", title: "", items: [{ id: "a", name: "Portraits", price: "from ₹8,000", description: "" }, { id: "b", name: " ", price: "", description: "" }] },
+            { id: "hid", type: "services", visible: false, title: "", items: [{ id: "c", name: "Secret", price: "", description: "" }] },
+        ],
+    });
+
+    it("is the person, their photo, other profiles and visible services", () => {
+        const data = profileJsonLd(doc, "lena");
+        expect(data.mainEntity).toMatchObject({ name: "Lena <Studio>", alternateName: "lena", image: `${SITE_URL}/media/abc`, sameAs: ["https://instagram.com/lena"] });
+        expect(data.mainEntity.makesOffer).toEqual([{ "@type": "Offer", description: "from ₹8,000", itemOffered: { "@type": "Service", name: "Portraits", description: undefined } }]);
+    });
+
+    it("can't close its own script tag", () => {
+        expect(jsonLdScript(profileJsonLd(doc, "lena"))).not.toContain("<");
     });
 });

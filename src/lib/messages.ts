@@ -42,6 +42,33 @@ export function paymentMessage(request: PaymentRequest, voice: Voice = "me") {
     };
 }
 
+export interface QuoteRequest {
+    creator: string;
+    client: string;
+    amount: number;
+    deposit: number;
+    currency: string;
+    service: string | null;
+    link: string;
+}
+
+export function quoteMessage({ creator, client, amount, deposit, currency, service, link }: QuoteRequest, voice: Voice = "me") {
+    const forWhat = service ? ` for ${service}` : "";
+    const price = formatMoney(amount, currency);
+    const toBook = deposit > 0 ? ` A deposit of ${formatMoney(deposit, currency)} books the date.` : "";
+
+    if (voice === "me") {
+        return {
+            subject: `Quote${forWhat}: ${price}`,
+            text: [`Hi ${firstName(client)},`, "", `Thank you for your message! Here's my quote${forWhat}: ${price}.${toBook}`, "", "You can see everything that's included and accept it here:", link, "", firstName(creator)].join("\n"),
+        };
+    }
+    return {
+        subject: `${creator} sent you a quote${forWhat}: ${price}`,
+        text: [`Hi ${client},`, "", `${creator} has sent you a quote${forWhat}: ${price}.${toBook}`, "", "See what's included and accept it here:", link, "", `Questions? Just reply to this email to reach ${creator}.`].join("\n"),
+    };
+}
+
 export interface ReviewRequest {
     creator: string;
     client: string;

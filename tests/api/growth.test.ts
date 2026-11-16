@@ -3,13 +3,15 @@ import { prisma } from "@/lib/db/prisma";
 import { POST as requestReview } from "@/app/api/enquiry/[id]/review-request/route";
 import { POST as requestPayment } from "@/app/api/enquiry/[id]/payment-request/route";
 import { POST as leaveReview } from "@/app/api/review/route";
+import { POST as sendQuote } from "@/app/api/enquiry/[id]/quote/route";
+import { POST as acceptQuote } from "@/app/api/quote/route";
 import { DELETE as deleteReview, PATCH as approveReview } from "@/app/api/reviews/[id]/route";
 import { GET as dailyJob } from "@/app/api/cron/daily/route";
 import { getApprovedReviews } from "@/lib/reviews";
 import { EVENT_DAYS } from "@/lib/reports/daily";
 import { SENT_FOR_YOU_A_DAY } from "@/lib/email/limits";
 import { pageStats } from "@/lib/analytics/stats";
-import { createCreator, emails, params, read, request, settle, signInAs } from "./helpers";
+import { createCreator, emails, params, read, request, settle, signInAs, signOut } from "./helpers";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -264,5 +266,69 @@ describe("analytics", () => {
         const stats = await pageStats(lena.page.id, 7);
         expect(stats.current).toMatchObject({ views: 3, visitors: 2, clicks: 1 });
         expect(stats.previous).toMatchObject({ views: 1, visitors: 1, clicks: 0 });
+    });
+});
+
+describe("quotes", () => {
+    const quote = (id: number, body: object) => sendQuote(request(`/api/enquiry/${id}/quote`, { method: "POST", body }), params({ id: String(id) }));
+    const accept = (token: string) => acceptQuote(request("/api/quote", { method: "POST", body: { token } }));
+    const details = "Half-day shoot\n60 edited photos";
+
+    it("hand back a link; the client accepts it, which books the work at that price and asks for the deposit", async () => {
+        const { lena, enquiry } = await lenaWithEnquiry("NEW");
+        const sent = await read(await quote(enquiry.id, { details, amount: 30000, deposit: 7500, link: "lena@okhdfcbank" }));
+        await settle();
+
+        expect(sent.status).toBe(200);
+        expect(emails).toHaveLength(0);
+        // sending a quote is replying
+        expect(sent.body.data.status).toBe("REPLIED");
+        expect((await prisma.user.findUniqueOrThrow({ where: { id: lena.user.id } })).paymentLink).toBe("lena@okhdfcbank");
+        const token = sent.body.data.link.split("/quote/")[1];
+
+        await signOut();
+        expect((await accept(token)).status).toBe(200);
+        await settle();
+        const booked = await prisma.enquiry.findUniqueOrThrow({ where: { id: enquiry.id } });
+        expect(booked).toMatchObject({ status: "BOOKED", amount: 30000, paymentRequestedAmount: 7500 });
+        expect(booked.quoteAcceptedAt).not.toBeNull();
+        expect(booked.bookedAt).not.toBeNull();
+        expect(emails).toHaveLength(1);
+        expect(emails[0]).toMatchObject({ to: "lena@example.com", subject: "Arjun accepted your quote: ₹30,000" });
+
+        // a second tap changes nothing and sends nothing
+        expect((await accept(token)).status).toBe(200);
+        await settle();
+        expect(emails).toHaveLength(1);
+    });
+
+    it("keep their link when changed, and can't be changed once accepted", async () => {
+        const { enquiry } = await lenaWithEnquiry("NEW");
+        const first = await read(await quote(enquiry.id, { details, amount: 30000 }));
+        const second = await read(await quote(enquiry.id, { details, amount: 28000 }));
+        expect(second.body.data.link).toBe(first.body.data.link);
+
+        await accept(first.body.data.link.split("/quote/")[1]);
+        expect((await quote(enquiry.id, { details, amount: 1 })).status).toBe(409);
+        expect((await prisma.enquiry.findUniqueOrThrow({ where: { id: enquiry.id } })).amount).toBe(28000);
+    });
+
+    it("need somewhere to pay a deposit, and a deposit no bigger than the price", async () => {
+        const { enquiry } = await lenaWithEnquiry("NEW");
+        expect((await quote(enquiry.id, { details, amount: 30000, deposit: 5000 })).status).toBe(400);
+        expect((await quote(enquiry.id, { details, amount: 30000, deposit: 5000, link: "not a link" })).status).toBe(400);
+        expect((await quote(enquiry.id, { details, amount: 3000, deposit: 5000, link: "lena@okhdfcbank" })).status).toBe(400);
+    });
+
+    it("can be emailed by Roselle, and stop working once the enquiry is called off", async () => {
+        const { enquiry } = await lenaWithEnquiry("NEW");
+        const sent = await read(await quote(enquiry.id, { details, amount: 30000, via: "roselle" }));
+        await settle();
+        expect(emails[0]).toMatchObject({ to: "arjun@example.com", subject: "lena sent you a quote for Brand shoot: ₹30,000" });
+        expect(emails[0].text).toContain(sent.body.data.link);
+
+        await prisma.enquiry.update({ where: { id: enquiry.id }, data: { status: "CLOSED" } });
+        expect((await accept(sent.body.data.link.split("/quote/")[1])).status).toBe(410);
+        expect((await accept("made-up")).status).toBe(410);
     });
 });

@@ -36,6 +36,12 @@ export default async function InboxPage() {
             reviewRequestedAt: true,
             paymentRequestedAt: true,
             paymentRequestedAmount: true,
+            quoteToken: true,
+            quoteDetails: true,
+            quoteAmount: true,
+            quoteDeposit: true,
+            quoteSentAt: true,
+            quoteAcceptedAt: true,
             review: { select: { id: true } },
         },
     });
@@ -51,7 +57,7 @@ export default async function InboxPage() {
             creatorName={creatorName}
             monthlyGoal={user.monthlyGoal}
             paymentLink={user.paymentLink ?? ""}
-            enquiries={enquiries.map(({ readAt, createdAt, bookedAt, reviewRequestedAt, paymentRequestedAt, review, ...enquiry }) => ({
+            enquiries={enquiries.map(({ readAt, createdAt, bookedAt, reviewRequestedAt, paymentRequestedAt, quoteSentAt, quoteAcceptedAt, review, ...enquiry }) => ({
                 ...enquiry,
                 unread: !readAt,
                 createdAt: createdAt.toISOString(),
@@ -59,6 +65,8 @@ export default async function InboxPage() {
                 reviewRequestedAt: reviewRequestedAt?.toISOString() ?? null,
                 reviewed: !!review,
                 paymentRequestedAt: paymentRequestedAt?.toISOString() ?? null,
+                quoteSentAt: quoteSentAt?.toISOString() ?? null,
+                quoteAcceptedAt: quoteAcceptedAt?.toISOString() ?? null,
             }))}
         />
     );
