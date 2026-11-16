@@ -7,6 +7,12 @@ import { useEffect, useRef } from "react";
 // instead of leaving the site. Opening one adds an entry to the history; Back takes it away
 // and closes it. Closed any other way (its own ✕), the entry is taken back too, so the next
 // Back isn't a step that does nothing.
+//
+// They can be open inside each other (Design → Text, then the preview over it). Each entry
+// knows how deep it is, and each one only closes when Back goes below its own entry: closing
+// the preview leaves you in Design → Text, where you were.
+const depthOf = (state: unknown) => (state as { overlayDepth?: number } | null)?.overlayDepth ?? 0;
+
 export function useBackToClose(open: boolean, close: () => void) {
     const closeRef = useRef(close);
     useEffect(() => {
@@ -16,9 +22,12 @@ export function useBackToClose(open: boolean, close: () => void) {
     useEffect(() => {
         if (!open) return;
         const id = Math.random();
-        window.history.pushState({ overlay: id }, "");
+        const depth = depthOf(window.history.state) + 1;
+        window.history.pushState({ overlay: id, overlayDepth: depth }, "");
         let popped = false;
         const onPop = () => {
+            // Back from something open on top of this one: not ours to close
+            if (depthOf(window.history.state) >= depth) return;
             popped = true;
             closeRef.current();
         };
