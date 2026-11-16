@@ -268,11 +268,40 @@ describe("bookings", () => {
             [{ source: "instagram.com", _count: 1 }],
         );
         expect(rows).toEqual([
-            { label: "direct", count: 60, enquiries: 0, booked: 0 },
-            { label: "instagram.com", count: 40, enquiries: 3, booked: 1 },
+            { label: "Unknown", icon: undefined, count: 60, enquiries: 0, booked: 0 },
+            { label: "Instagram", icon: "instagram", count: 40, enquiries: 3, booked: 1 },
             // an enquiry whose view wasn't recorded still shows up
-            { label: "newsletter", count: 0, enquiries: 1, booked: 0 },
+            { label: "Email", icon: "email", count: 0, enquiries: 1, booked: 0 },
         ]);
+    });
+
+    it("adds up the addresses one place goes by, and says where the work comes from", async () => {
+        const { sourcesTable, sourcesSummary } = await import("@/lib/analytics/stats");
+        const rows = sourcesTable(
+            [{ source: "l.instagram.com", _count: 10 }, { source: "instagram.com", _count: 5 }, { source: "ig", _count: 2 }, { source: "wa.me", _count: 4 }, { source: "direct", _count: 30 }],
+            [{ source: "instagram.com", _count: 2 }, { source: "whatsapp", _count: 3 }],
+            [],
+        );
+        expect(rows.map((row) => [row.label, row.count, row.enquiries])).toEqual([
+            ["Unknown", 30, 0],
+            ["Instagram", 17, 2],
+            ["WhatsApp", 4, 3],
+        ]);
+        expect(sourcesSummary(rows)).toBe("WhatsApp brings the most enquiries: 3 of 5.");
+        expect(sourcesSummary(sourcesTable([{ source: "t.co", _count: 3 }, { source: "direct", _count: 1 }], [], []))).toBe("Most visits you can trace come from X (Twitter): 75% of all of them.");
+        expect(sourcesSummary([])).toBeNull();
+    });
+
+    it("names where a visit came from, and spots in-app browsers that send no address", async () => {
+        const { placeOf, appOf } = await import("@/lib/analytics/sources");
+        expect(placeOf("lm.facebook.com").name).toBe("Facebook");
+        expect(placeOf("google.co.in").name).toBe("Google");
+        expect(placeOf("qr").name).toBe("QR code");
+        expect(placeOf("someblog.net").name).toBe("someblog.net");
+        expect(appOf("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0) Mobile/15E148 Instagram 350.0.0.30.97")).toBe("instagram.com");
+        expect(appOf("Mozilla/5.0 (iPhone) Mobile/15E148 Barcelona 289.0.0.77 Instagram")).toBe("threads.net");
+        expect(appOf("Mozilla/5.0 (Linux; Android 14) [FB_IAB/FB4A;FBAV/470.0]")).toBe("facebook.com");
+        expect(appOf("Mozilla/5.0 (iPhone) Version/18.0 Mobile/15E148 Safari/604.1")).toBeUndefined();
     });
 
     it("takes a date for a service enquiry, or none", async () => {

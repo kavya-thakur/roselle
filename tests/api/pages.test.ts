@@ -185,6 +185,17 @@ describe("counting visits", () => {
         expect(JSON.stringify(event)).not.toMatch(/\d+\.\d+\.\d+\.\d+/);
     });
 
+    it("knows Instagram's in-app browser even when it sends no address, and a ?via= tag wins over both", async () => {
+        const { page } = await createCreator("lena");
+        const instagramApp = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Mobile/15E148 Instagram 350.0.0.30.97";
+        await recordView(request("/api/public/views", { method: "POST", body: { pageId: page.id }, headers: { "user-agent": instagramApp } }));
+        await recordView(request("/api/public/views", { method: "POST", body: { pageId: page.id, utmSource: "whatsapp" }, headers: { "user-agent": instagramApp } }));
+        await settle();
+        // both are saved after their answers, in either order
+        const sources = (await prisma.event.findMany()).map((event) => event.source).sort();
+        expect(sources).toEqual(["instagram.com", "whatsapp"]);
+    });
+
     it("ignores bots and link previews", async () => {
         const { page } = await createCreator("lena");
         await visit(page.id, { "user-agent": "facebookexternalhit/1.1" });

@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { averageReplyHours, serviceStats } from "@/lib/bookings";
+import { placeOf, UNKNOWN } from "./sources";
+import type { LinkIconName } from "@/lib/validations/page";
 
 export const RANGES = [7, 30, 90] as const;
 export type Range = (typeof RANGES)[number];
@@ -86,13 +88,39 @@ export type PageStats = Awaited<ReturnType<typeof pageStats>>;
 
 type SourceCount = { source: string; _count: number };
 
-// One row per source with its views, enquiries and bookings, most views first. A source can bring
-// an enquiry without a recorded view (an ad blocker stopped the view), so it's every source of either.
+// One row per place (Instagram, WhatsApp, …) with its views, enquiries and bookings, most views
+// first. The addresses one place goes by (instagram.com, l.instagram.com, ?via=ig) add up into
+// its one row. A place can bring an enquiry without a recorded view (an ad blocker stopped the
+// view), so it's every place of either.
 export function sourcesTable(views: SourceCount[], enquiries: SourceCount[], booked: SourceCount[]) {
-    const countIn = (rows: SourceCount[], source: string) => rows.find((row) => row.source === source)?._count ?? 0;
-    const sources = [...new Set([...views, ...enquiries].map((row) => row.source))];
+    const rows = new Map<string, { label: string; icon?: LinkIconName; count: number; enquiries: number; booked: number }>();
+    const add = (list: SourceCount[], key: "count" | "enquiries" | "booked") => {
+        for (const { source, _count } of list) {
+            const place = placeOf(source);
+            const row = rows.get(place.name) ?? { label: place.name, icon: place.icon, count: 0, enquiries: 0, booked: 0 };
+            row[key] += _count;
+            rows.set(place.name, row);
+        }
+    };
+    add(views, "count");
+    add(enquiries, "enquiries");
+    add(booked, "booked");
 
-    return sources
-        .map((source) => ({ label: source, count: countIn(views, source), enquiries: countIn(enquiries, source), booked: countIn(booked, source) }))
-        .sort((a, b) => b.count - a.count || b.enquiries - a.enquiries);
+    return [...rows.values()].sort((a, b) => b.count - a.count || b.enquiries - a.enquiries);
+}
+
+// The one sentence the sources table is for: where the work comes from, else where visitors do.
+// Null with nothing to say yet.
+export function sourcesSummary(rows: ReturnType<typeof sourcesTable>) {
+    const known = rows.filter((row) => row.label !== UNKNOWN);
+    const enquiries = rows.reduce((sum, row) => sum + row.enquiries, 0);
+    const views = rows.reduce((sum, row) => sum + row.count, 0);
+
+    const topForWork = [...known].sort((a, b) => b.booked - a.booked || b.enquiries - a.enquiries)[0];
+    if (topForWork?.booked) return `${topForWork.label} brings the most bookings: ${topForWork.booked} of ${rows.reduce((sum, row) => sum + row.booked, 0)}.`;
+    if (topForWork?.enquiries) return `${topForWork.label} brings the most enquiries: ${topForWork.enquiries} of ${enquiries}.`;
+
+    const topForVisits = known[0];
+    if (topForVisits?.count) return `Most visits you can trace come from ${topForVisits.label}: ${Math.round((topForVisits.count / views) * 100)}% of all of them.`;
+    return null;
 }
