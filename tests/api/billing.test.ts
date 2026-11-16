@@ -5,6 +5,8 @@ import { POST as order } from "@/app/api/billing/order/route";
 import { POST as verify } from "@/app/api/billing/verify/route";
 import { POST as webhook } from "@/app/api/billing/webhook/route";
 import { GET as dailyJob } from "@/app/api/cron/daily/route";
+import { POST as adminAction } from "@/app/api/admin/route";
+import { listAccounts, listPayments, monthStart, overview } from "@/lib/admin";
 import { getPublishedPage } from "@/lib/pages/publish";
 import { NextRequest } from "next/server";
 import { createCreator, emails, read, request, settle, signInAs, signOut } from "./helpers";
@@ -206,5 +208,57 @@ describe("when Pro runs out", () => {
         expect(proEmails().at(-1)!.text).toContain("/settings#plan");
         await runDailyJob();
         expect(proEmails()).toHaveLength(3);
+    });
+});
+
+describe("the admin screen", () => {
+    const act = (body: object) => adminAction(request("/api/admin", { method: "POST", body }));
+    const pay = (userId: number, email: string, amount: number, period: string, createdAt: Date) =>
+        prisma.payment.create({ data: { userId, email, razorpayOrderId: `order_${++count}`, razorpayPaymentId: `pay_${++count}`, period, amount, paidUntil: new Date(), createdAt } });
+
+    it("adds up revenue by month and lists every payment, found by email, page or Razorpay id", async () => {
+        const lena = await createCreator("lena");
+        const arjun = await createCreator("arjun");
+        const now = new Date();
+        await pay(lena.user.id, "lena@example.com", 24900, "monthly", now);
+        await pay(arjun.user.id, "arjun@example.com", 199900, "yearly", now);
+        await pay(lena.user.id, "lena@example.com", 24900, "monthly", new Date(monthStart(now).getTime() - DAY));
+
+        const stats = await overview(now);
+        expect(stats.revenue).toEqual({ thisMonth: 2248, thisMonthPayments: 2, allTime: 2497, allTimePayments: 3, payers: 2 });
+
+        expect((await listPayments({ period: "lastMonth" }, now)).rows).toHaveLength(1);
+        expect((await listPayments({ search: "ARJUN" }, now)).sum).toBe(1999);
+        const byId = await listPayments({ search: (await prisma.payment.findFirstOrThrow({ where: { userId: lena.user.id } })).razorpayPaymentId });
+        expect(byId.rows[0]).toMatchObject({ username: "lena", email: "lena@example.com" });
+    });
+
+    it("keeps payments when the account is deleted, as a record of money received", async () => {
+        const lena = await createCreator("lena");
+        await pay(lena.user.id, "lena@example.com", 24900, "monthly", new Date());
+        await prisma.user.delete({ where: { id: lena.user.id } });
+        expect((await listPayments({})).rows).toMatchObject([{ email: "lena@example.com", deleted: true, amount: 249 }]);
+    });
+
+    it("lets an admin give Pro by hand (added on, or with no end) and end it; nobody else", async () => {
+        const lena = await createCreator("lena");
+        await signInAs(lena.user.id);
+        expect((await act({ action: "grantPro", userId: lena.user.id, days: null })).status).toBe(404);
+
+        const { user: admin } = await createCreator("boss", { email: "admin@example.com" });
+        await signInAs(admin.id);
+        expect((await act({ action: "grantPro", userId: lena.user.id, days: 30 })).status).toBe(200);
+        expect(daysFromNow((await userOf(lena.user.id)).proUntil)).toBe(30);
+        await act({ action: "grantPro", userId: lena.user.id, days: 365 });
+        expect(daysFromNow((await userOf(lena.user.id)).proUntil)).toBe(395);
+        expect((await listAccounts({ filter: "pro" })).rows.map((row) => row.email)).toEqual(["lena@example.com"]);
+
+        await act({ action: "endPro", userId: lena.user.id });
+        expect((await getPublishedPage("lena"))!.pro).toBe(false);
+        expect((await listAccounts({ filter: "free" })).total).toBe(2);
+
+        await act({ action: "grantPro", userId: lena.user.id, days: null });
+        expect(await userOf(lena.user.id)).toMatchObject({ plan: "PRO", proUntil: null });
+        expect((await listAccounts({ search: "lena" })).rows[0].standing).toBe("given");
     });
 });

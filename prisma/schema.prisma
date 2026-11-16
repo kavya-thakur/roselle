@@ -46,10 +46,12 @@ model User {
 }
 
 // A Razorpay payment for Pro. The payment id is unique, so the browser and Razorpay's webhook
-// reporting the same payment count it once.
+// reporting the same payment count it once. Kept when the account is deleted (it's a record of money
+// received), with the address that paid.
 model Payment {
   id                Int      @id @default(autoincrement())
-  userId            Int
+  userId            Int?
+  email             String   @default("")
   razorpayOrderId   String
   razorpayPaymentId String   @unique
   // "monthly" or "yearly", and what was paid, in paise
@@ -59,9 +61,10 @@ model Payment {
   paidUntil         DateTime
   createdAt         DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
+  @@index([createdAt])
 }
 
 enum TokenKind {

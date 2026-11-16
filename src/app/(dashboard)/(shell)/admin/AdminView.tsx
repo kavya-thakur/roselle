@@ -29,7 +29,8 @@ export function AdminView({ reports, suspended }: { reports: Report[]; suspended
     const router = useRouter();
     const [busy, setBusy] = useState<string | null>(null);
 
-    // every action goes to /api/admin, then the lists are read again from the server
+    // The Reports tab: reports from visitors, and the pages that are taken down.
+    // Every action goes to /api/admin, then the lists are read again from the server
     async function run(key: string, action: AdminAction) {
         setBusy(key);
         try {
@@ -52,62 +53,57 @@ export function AdminView({ reports, suspended }: { reports: Report[]; suspended
     }
 
     return (
-        <main className="flex-1 overflow-y-auto">
-            <div className="mx-auto max-w-3xl px-5 py-8 sm:px-6 sm:py-12">
-                <h1 className="font-display text-5xl">Admin</h1>
-                <p className="mt-2 text-sm text-muted">Reports from visitors, and the pages that are taken down.</p>
+        <div className="max-w-3xl">
+            <TakeDownForm busy={busy === "form"} onSubmit={(username) => takeDown(username, "")} />
 
-                <TakeDownForm busy={busy === "form"} onSubmit={(username) => takeDown(username, "")} />
-
-                <h2 className="mt-12 text-lg font-semibold">Open reports ({reports.length})</h2>
-                {reports.length === 0 && <EmptyState compact picture="shield" title="All clear" />}
-                <ul className="mt-4 space-y-3">
-                    {reports.map((report) => (
-                        <li key={report.id} className={card}>
-                            <div className="flex flex-wrap items-baseline justify-between gap-2">
-                                <a href={`/${report.username}`} target="_blank" className="flex items-center gap-1 font-semibold hover:underline">
-                                    {SITE_HOST}/{report.username} <IconArrowUpRight size={14} />
-                                </a>
-                                <span className="text-xs text-muted"><LocalTime iso={report.createdAt} /></span>
-                            </div>
-                            <p className="mt-1 text-sm font-semibold text-pink">{report.reason}</p>
-                            {report.details && <p className="mt-2 text-sm whitespace-pre-line text-ink/80">{report.details}</p>}
-                            <p className="mt-2 text-xs text-muted">From {report.email ?? "an anonymous visitor"}</p>
-                            <div className="mt-4 flex flex-wrap gap-2">
-                                {report.pageDown ? (
-                                    <span className="text-sm text-muted">Page is already down.</span>
-                                ) : (
-                                    <Button size="small" className="bg-danger hover:bg-danger/90" busy={busy === `down:${report.username}`} onClick={() => takeDown(report.username, report.reason)}>
-                                        Take page down
-                                    </Button>
-                                )}
-                                <Button size="small" look="secondary" busy={busy === `dismiss:${report.id}`} onClick={() => run(`dismiss:${report.id}`, { action: "dismiss", reportId: report.id })}>
-                                    Dismiss
+            <h2 className="mt-12 text-lg font-semibold">Open reports ({reports.length})</h2>
+            {reports.length === 0 && <EmptyState compact picture="shield" title="All clear" />}
+            <ul className="mt-4 space-y-3">
+                {reports.map((report) => (
+                    <li key={report.id} className={card}>
+                        <div className="flex flex-wrap items-baseline justify-between gap-2">
+                            <a href={`/${report.username}`} target="_blank" className="flex items-center gap-1 font-semibold hover:underline">
+                                {SITE_HOST}/{report.username} <IconArrowUpRight size={14} />
+                            </a>
+                            <span className="text-xs text-muted"><LocalTime iso={report.createdAt} /></span>
+                        </div>
+                        <p className="mt-1 text-sm font-semibold text-pink">{report.reason}</p>
+                        {report.details && <p className="mt-2 text-sm whitespace-pre-line text-ink/80">{report.details}</p>}
+                        <p className="mt-2 text-xs text-muted">From {report.email ?? "an anonymous visitor"}</p>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                            {report.pageDown ? (
+                                <span className="text-sm text-muted">Page is already down.</span>
+                            ) : (
+                                <Button size="small" className="bg-danger hover:bg-danger/90" busy={busy === `down:${report.username}`} onClick={() => takeDown(report.username, report.reason)}>
+                                    Take page down
                                 </Button>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
-
-                <h2 className="mt-12 text-lg font-semibold">Taken down ({suspended.length})</h2>
-                {suspended.length === 0 && <EmptyState compact picture="tray" title="No pages are down" />}
-                <ul className="mt-4 space-y-3">
-                    {suspended.map((page) => (
-                        <li key={page.username} className={`${card} flex flex-wrap items-center gap-3`}>
-                            <div className="min-w-0 flex-1">
-                                <p className="font-semibold">{SITE_HOST}/{page.username}</p>
-                                <p className="mt-0.5 text-sm text-muted">
-                                    {page.reason} · <LocalTime iso={page.suspendedAt} />
-                                </p>
-                            </div>
-                            <Button size="small" look="secondary" busy={busy === `up:${page.username}`} onClick={() => run(`up:${page.username}`, { action: "restore", username: page.username })}>
-                                Put it back
+                            )}
+                            <Button size="small" look="secondary" busy={busy === `dismiss:${report.id}`} onClick={() => run(`dismiss:${report.id}`, { action: "dismiss", reportId: report.id })}>
+                                Dismiss
                             </Button>
-                        </li>
-                    ))}
-                </ul>
-            </div>
-        </main>
+                        </div>
+                    </li>
+                ))}
+            </ul>
+
+            <h2 className="mt-12 text-lg font-semibold">Taken down ({suspended.length})</h2>
+            {suspended.length === 0 && <EmptyState compact picture="tray" title="No pages are down" />}
+            <ul className="mt-4 space-y-3">
+                {suspended.map((page) => (
+                    <li key={page.username} className={`${card} flex flex-wrap items-center gap-3`}>
+                        <div className="min-w-0 flex-1">
+                            <p className="font-semibold">{SITE_HOST}/{page.username}</p>
+                            <p className="mt-0.5 text-sm text-muted">
+                                {page.reason} · <LocalTime iso={page.suspendedAt} />
+                            </p>
+                        </div>
+                        <Button size="small" look="secondary" busy={busy === `up:${page.username}`} onClick={() => run(`up:${page.username}`, { action: "restore", username: page.username })}>
+                            Put it back
+                        </Button>
+                    </li>
+                ))}
+            </ul>
+        </div>
     );
 }
 

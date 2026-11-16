@@ -106,10 +106,10 @@ export async function settlePayment(orderId: string, paymentId: string, forUser?
 
     try {
         const user = await prisma.$transaction(async (tx) => {
-            const current = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { plan: true, proUntil: true } });
+            const current = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { plan: true, proUntil: true, email: true } });
             const proUntil = proUntilAfter(period, current.plan === "PRO" ? current.proUntil : null);
             // the payment id is unique: a second arrival of the same payment stops here, before adding time
-            await tx.payment.create({ data: { userId, razorpayOrderId: order.id, razorpayPaymentId: payment.id, period, amount: payment.amount, paidUntil: proUntil } });
+            await tx.payment.create({ data: { userId, email: current.email, razorpayOrderId: order.id, razorpayPaymentId: payment.id, period, amount: payment.amount, paidUntil: proUntil } });
             return tx.user.update({ where: { id: userId }, data: { plan: "PRO", proUntil, billingReminderKey: null }, select: { email: true, proUntil: true, page: { select: { username: true } } } });
         });
         // the badge leaves their page straight away
