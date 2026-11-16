@@ -40,6 +40,22 @@ export const paymentRequestSchema = z.object({
     via: z.enum(["self", "roselle"]).default("roselle"),
 });
 
+// A quote for an enquiry: what's included, the price, and how much of it books the date. Where
+// they pay the deposit is only needed when there is one.
+export const quoteSchema = z
+    .object({
+        details: z.string().trim().min(2, "Say what's included").max(3000, "Must be at most 3000 characters"),
+        amount: z.number().int("Whole amounts only").min(1, "Enter the price").max(100_000_000),
+        deposit: z.number().int("Whole amounts only").min(0).max(100_000_000).default(0),
+        link: z.string().trim().max(500).default(""),
+        via: z.enum(["self", "roselle"]).default("self"),
+    })
+    .refine((quote) => quote.deposit <= quote.amount, { message: "The deposit can't be more than the price", path: ["deposit"] })
+    .refine((quote) => quote.deposit === 0 || quote.link.length >= 3, { message: "Add where they pay the deposit", path: ["link"] });
+
+// A client accepting a quote, from its link
+export const quoteAcceptSchema = z.object({ token: z.string().min(1).max(200) });
+
 // A client's review, from the one-time link in their email
 export const reviewSchema = z.object({
     token: z.string().min(1).max(200),

@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { IconBrandWhatsapp, IconCalendarEvent, IconCash, IconClock, IconCopy, IconLoader2, IconMail, IconStar, IconTrash } from "@tabler/icons-react";
+import { IconBrandWhatsapp, IconCalendarEvent, IconCash, IconCircleCheck, IconClock, IconCopy, IconFileText, IconLoader2, IconMail, IconStar, IconTrash } from "@tabler/icons-react";
 
 import { Dropdown } from "@/components/Dropdown";
 import { LocalTime } from "@/components/LocalTime";
 import { api } from "@/lib/api/client";
 import { toast } from "@/components/Toast";
 import { paymentTarget } from "@/lib/pages/links";
-import { emailLink, paymentMessage, REVIEW_LINK_DAYS, reviewMessage, whatsappLink } from "@/lib/messages";
+import { emailLink, paymentMessage, quoteMessage, REVIEW_LINK_DAYS, reviewMessage, whatsappLink } from "@/lib/messages";
 import { isWon, STATUS_LABELS } from "@/lib/bookings";
 import { currencySymbol, formatMoney } from "@/lib/utils/format";
 import { ENQUIRY_STATUSES, type EnquiryStatus, type EnquiryUpdate } from "@/lib/validations/enquiry";
@@ -31,6 +31,13 @@ export interface Enquiry {
     reviewed: boolean;
     paymentRequestedAt: string | null;
     paymentRequestedAmount: number | null;
+    // the quote sent in reply, if there is one (see /quote/<token>)
+    quoteToken: string | null;
+    quoteDetails: string | null;
+    quoteAmount: number | null;
+    quoteDeposit: number | null;
+    quoteSentAt: string | null;
+    quoteAcceptedAt: string | null;
 }
 
 interface EnquiryCardProps {
@@ -63,6 +70,7 @@ export function EnquiryCard({ enquiry, currency, creatorName, paymentLink, onUpd
     const [amount, setAmount] = useState(enquiry.amount?.toString() ?? "");
     const [asking, setAsking] = useState(false);
     const [requesting, setRequesting] = useState(false);
+    const [quoting, setQuoting] = useState(false);
     // the review link, once made, while the creator sends it
     const [reviewLink, setReviewLink] = useState<string | null>(null);
     const money = (value: number) => formatMoney(value, currency);
@@ -115,6 +123,17 @@ export function EnquiryCard({ enquiry, currency, creatorName, paymentLink, onUpd
                 {enquiry.phone && <Chip icon={<IconBrandWhatsapp size={13} />}>{enquiry.phone}</Chip>}
                 {enquiry.wantedOn && <Chip icon={<IconCalendarEvent size={13} />}>{/* a plain day with no time zone; noon keeps it on that day everywhere */}
                         <LocalTime iso={`${enquiry.wantedOn}T12:00:00`} format="date" /></Chip>}
+                {enquiry.quoteAcceptedAt && enquiry.quoteAmount !== null ? (
+                    <Chip tone="bg-success/10 text-success" icon={<IconCircleCheck size={13} />}>
+                        Quote accepted {money(enquiry.quoteAmount)}
+                    </Chip>
+                ) : (
+                    enquiry.quoteSentAt && enquiry.quoteAmount !== null && (
+                        <Chip icon={<IconFileText size={13} />}>
+                            Quote sent {money(enquiry.quoteAmount)} <LocalTime iso={enquiry.quoteSentAt} format="date" />
+                        </Chip>
+                    )
+                )}
                 {enquiry.paymentRequestedAt && enquiry.paymentRequestedAmount !== null && (
                     <Chip icon={<IconCash size={13} />}>
                         {money(enquiry.paymentRequestedAmount)} requested <LocalTime iso={enquiry.paymentRequestedAt} format="date" />
@@ -154,6 +173,12 @@ export function EnquiryCard({ enquiry, currency, creatorName, paymentLink, onUpd
                     </label>
                 )}
 
+                {/* a quote is the reply to a new enquiry: the price, and a button that books it */}
+                {(enquiry.status === "NEW" || enquiry.status === "REPLIED") && !enquiry.quoteAcceptedAt && !quoting && (
+                    <Action onClick={() => setQuoting(true)} primary={!enquiry.quoteSentAt} icon={<IconFileText size={15} />}>
+                        {enquiry.quoteSentAt ? "Change quote" : "Send a quote"}
+                    </Action>
+                )}
                 {enquiry.status === "BOOKED" && !requesting && (
                     <Action onClick={() => setRequesting(true)} icon={<IconCash size={15} />}>
                         {enquiry.paymentRequestedAt ? "Request again" : "Request payment"}
@@ -193,6 +218,17 @@ export function EnquiryCard({ enquiry, currency, creatorName, paymentLink, onUpd
                         onCancel={() => setReviewLink(null)}
                     />
                 </div>
+            )}
+
+            {quoting && (
+                <QuoteForm
+                    enquiry={enquiry}
+                    currency={currency}
+                    creatorName={creatorName}
+                    paymentLink={paymentLink}
+                    onClose={() => setQuoting(false)}
+                    onSent={onSent}
+                />
             )}
 
             {requesting && (
@@ -291,6 +327,103 @@ function PaymentRequest({ enquiry, currency, creatorName, paymentLink, onCancel,
                     <Action onClick={onCancel}>Cancel</Action>
                 </div>
             )}
+        </div>
+    );
+}
+
+// A quote: what's included, the price and the deposit that books it. Saved first (that makes its
+// link), then sent like the other messages. The client accepts it on its own page, which marks
+// the enquiry Booked; changing it later keeps the same link.
+function QuoteForm({ enquiry, currency, creatorName, paymentLink, onClose, onSent }: { enquiry: Enquiry; currency: string; creatorName: string; paymentLink: string; onClose: () => void; onSent: EnquiryCardProps["onSent"] }) {
+    const [details, setDetails] = useState(enquiry.quoteDetails ?? "");
+    const [amount, setAmount] = useState(enquiry.quoteAmount?.toString() ?? "");
+    const [deposit, setDeposit] = useState(enquiry.quoteDeposit ? enquiry.quoteDeposit.toString() : "");
+    const [link, setLink] = useState(paymentLink);
+    const [busy, setBusy] = useState(false);
+    // the saved quote's link, while the creator sends it
+    const [sending, setSending] = useState<string | null>(null);
+    const field = "h-10 w-full rounded-xl border border-line bg-paper px-3 text-sm outline-none focus:border-ink";
+
+    const price = Math.round(Number(amount)) || 0;
+    const toBook = Math.round(Number(deposit)) || 0;
+    const problem = details.trim().length < 2 ? "Say what's included" : price < 1 ? "Enter the price" : toBook > price ? "The deposit can't be more than the price" : toBook > 0 && !paymentTarget(link) ? "Add where they pay the deposit: a UPI ID (name@bank) or a payment page starting with https://" : null;
+
+    async function save(via: "self" | "roselle") {
+        setBusy(true);
+        try {
+            const saved = await api<Partial<Enquiry> & { link: string }>(`/enquiry/${enquiry.id}/quote`, { method: "POST", body: { details, amount: price, deposit: toBook, link, via } });
+            const { link: quoteLink, ...change } = saved;
+            onSent(change, toBook > 0 ? link : undefined);
+            if (via === "roselle") {
+                onClose();
+                toast(`Quote emailed to ${enquiry.name}`, { detail: "You'll be emailed when they accept it." });
+            } else {
+                setSending(quoteLink);
+            }
+        } catch (failure) {
+            toast.error("The quote wasn't saved", (failure as Error).message);
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    if (sending) {
+        return (
+            <div className="mt-4 rounded-xl bg-sand/60 p-4">
+                <p className="text-sm font-semibold">Send the quote to {enquiry.name}</p>
+                <p className="mt-0.5 text-xs text-muted">They open the link, see what&apos;s included and tap Accept. It&apos;s marked Booked here and you get an email.</p>
+                <SendOptions
+                    enquiry={enquiry}
+                    message={quoteMessage({ creator: creatorName, client: enquiry.name, amount: price, deposit: toBook, currency, service: enquiry.service, link: sending })}
+                    onSent={(how) => {
+                        onClose();
+                        toast(how === "copy" ? "Quote message copied" : `Quote ready to send to ${firstName(enquiry.name)}`, { detail: SENT_HINTS[how] + " You'll be emailed when they accept." });
+                    }}
+                    onRoselle={() => save("roselle")}
+                    onCancel={onClose}
+                />
+            </div>
+        );
+    }
+
+    return (
+        <div className="mt-4 rounded-xl bg-sand/60 p-4">
+            <p className="text-sm font-semibold">{enquiry.quoteSentAt ? "Change" : "Send"} your quote to {enquiry.name}</p>
+            <label className="mt-3 block text-xs font-semibold text-muted">
+                What&apos;s included
+                <textarea
+                    value={details}
+                    onChange={(event) => setDetails(event.target.value)}
+                    rows={4}
+                    maxLength={3000}
+                    placeholder={"Full day of coverage, 8 hours\n400+ edited photos in an online gallery\nDelivered within 3 weeks"}
+                    className={`${field} mt-1 h-auto py-2 leading-relaxed`}
+                />
+            </label>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <label className="text-xs font-semibold text-muted">
+                    Price ({currencySymbol(currency)})
+                    <input type="number" inputMode="numeric" min={1} step={1} value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="25000" className={`${field} mt-1 tabular-nums`} />
+                </label>
+                <label className="text-xs font-semibold text-muted">
+                    Deposit to book (optional)
+                    <input type="number" inputMode="numeric" min={0} step={1} value={deposit} onChange={(event) => setDeposit(event.target.value)} placeholder={price ? `${Math.round(price / 4)}` : "0"} className={`${field} mt-1 tabular-nums`} />
+                </label>
+            </div>
+            {toBook > 0 && (
+                <label className="mt-2 block text-xs font-semibold text-muted">
+                    Where they pay the deposit
+                    <input value={link} onChange={(event) => setLink(event.target.value)} placeholder="A UPI ID like you@okbank, or https://buy.stripe.com/…" className={`${field} mt-1`} />
+                </label>
+            )}
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Action onClick={() => save("self")} busy={busy} disabled={!!problem} primary icon={<IconFileText size={15} />}>
+                    {enquiry.quoteSentAt ? "Save and send again" : "Make the quote"}
+                </Action>
+                <Action onClick={onClose}>Cancel</Action>
+                {problem && (details || amount || deposit) && <p className="w-full text-xs text-danger">{problem}</p>}
+            </div>
         </div>
     );
 }

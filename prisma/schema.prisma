@@ -141,6 +141,16 @@ model Enquiry {
   // the latest payment request emailed to the client
   paymentRequestedAt     DateTime?
   paymentRequestedAmount Int?
+  // the quote sent in reply: what's included, the price and the deposit to book. The client opens
+  // it at /quote/<quoteToken> and accepts it there, which books the work.
+  // The token is kept as it is (not hashed like the review link) so the creator can copy the link
+  // again; all it can do is show this quote and accept it.
+  quoteToken      String?   @unique
+  quoteDetails    String?
+  quoteAmount     Int?
+  quoteDeposit    Int?
+  quoteSentAt     DateTime?
+  quoteAcceptedAt DateTime?
   createdAt DateTime      @default(now())
   // opened in the inbox
   readAt    DateTime?
