@@ -2,6 +2,7 @@ import { cache } from "react";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { pageSchema } from "@/lib/validations/page";
+import { planNow } from "@/lib/plans";
 
 // Public pages are rendered once and kept (see src/app/[username]/page.tsx); after anything a
 // visitor would see changes, this makes the next visit render it fresh
@@ -19,12 +20,13 @@ export function refreshPublicPage(username: string) {
 export const getPublishedPage = cache(async (username: string) => {
     const page = await prisma.page.findUnique({
         where: { username: username.toLowerCase() },
-        select: { id: true, username: true, published: true, suspendedAt: true },
+        select: { id: true, username: true, published: true, suspendedAt: true, user: { select: { plan: true, proUntil: true } } },
     });
 
     // a page an admin took down is gone for visitors, as if it never existed
     const published = pageSchema.safeParse(page?.published);
     if (!page || !published.success || page.suspendedAt) return null;
 
-    return { id: page.id, username: page.username, doc: published.data };
+    // pro: no Roselle badge on it
+    return { id: page.id, username: page.username, doc: published.data, pro: planNow(page.user.plan, page.user.proUntil) === "PRO" };
 });

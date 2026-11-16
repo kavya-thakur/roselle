@@ -12,6 +12,7 @@ import { toast } from "@/components/Toast";
 import type { Plan } from "@/lib/plans";
 import { deleteAccountSchema, passwordChangeSchema, usernameChangeSchema, type PasswordFormValues, type UsernameFormValues } from "@/lib/validations/settings";
 import { SITE_HOST } from "@/lib/site";
+import { PlanSection, type Billing } from "./PlanSection";
 
 interface SettingsViewProps {
     email: string;
@@ -21,12 +22,13 @@ interface SettingsViewProps {
     emailVerified: boolean;
     // just back from the email's link: did it work?
     justVerified: boolean | null;
+    billing: Billing;
 }
 
 const section = "mt-6 rounded-2xl border border-line bg-paper p-6 shadow-soft";
 const notice = (ok: boolean) => `rounded-xl px-3.5 py-2.5 text-sm ${ok ? "bg-success/10 text-success" : "bg-blush text-pink"}`;
 
-export function SettingsView({ email, username, plan, weeklyEmail, emailVerified, justVerified }: SettingsViewProps) {
+export function SettingsView({ email, username, plan, weeklyEmail, emailVerified, justVerified, billing }: SettingsViewProps) {
     const router = useRouter();
 
     const {
@@ -76,6 +78,7 @@ export function SettingsView({ email, username, plan, weeklyEmail, emailVerified
                     </form>
                 </section>
 
+                <PlanSection billing={billing} email={email} />
                 <AccountSection email={email} plan={plan} emailVerified={emailVerified} justVerified={justVerified} />
                 <EmailsSection weeklyEmail={weeklyEmail} />
                 <PasswordSection />
@@ -86,7 +89,7 @@ export function SettingsView({ email, username, plan, weeklyEmail, emailVerified
 }
 
 // Who's signed in, whether that address is confirmed, and which plan they're on
-function AccountSection({ email, plan, emailVerified, justVerified }: Omit<SettingsViewProps, "username" | "weeklyEmail">) {
+function AccountSection({ email, plan, emailVerified, justVerified }: Omit<SettingsViewProps, "username" | "weeklyEmail" | "billing">) {
     const [sending, setSending] = useState(false);
 
     async function resend() {

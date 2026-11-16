@@ -32,13 +32,16 @@ interface PageRendererProps {
     reviews?: PublicReview[];
     // the editor's Arrange mode puts its controls around each block (index: its place in page.blocks)
     wrap?: (block: Block, index: number, view: ReactNode) => ReactNode;
+    // the "Composed with Roselle" line at the foot: on free pages, gone on Pro. "upgrade" adds a
+    // link to remove it, for the creator's own editor.
+    badge?: boolean | "upgrade";
 }
 
 // Draws a creator page from its JSON document. The same component is the public page, the
 // editor's live preview and the landing page's examples, so they can never look different.
 // It sizes itself to its box (container queries), not the window, which is what lets the
 // editor show a phone and a desktop preview side by side on one screen.
-export function PageRenderer({ page, mode = "live", pageId, username, reviews = [], wrap }: PageRendererProps) {
+export function PageRenderer({ page, mode = "live", pageId, username, reviews = [], wrap, badge = true }: PageRendererProps) {
     const { profile, theme } = page;
     // visitors never see hidden or off-schedule blocks, nor one left unfinished (a button that goes nowhere)
     // (a Reviews block with nothing approved yet is unfinished too)
@@ -120,9 +123,16 @@ export function PageRenderer({ page, mode = "live", pageId, username, reviews = 
                     </main>
 
                     <footer className={`mt-16 text-xs text-(--page-muted) ${left ? "" : "text-center"}`}>
-                        <Link href="/" className="tracking-[0.18em] uppercase opacity-70 transition hover:opacity-100">
-                            Composed with <span className="font-display text-sm tracking-normal normal-case">Roselle</span>
-                        </Link>
+                        {badge && (
+                            <Link href="/" className="tracking-[0.18em] uppercase opacity-70 transition hover:opacity-100">
+                                Composed with <span className="font-display text-sm tracking-normal normal-case">Roselle</span>
+                            </Link>
+                        )}
+                        {badge === "upgrade" && (
+                            <Link href="/settings#plan" className="ml-2 rounded-full border border-current px-2 py-0.5 font-semibold opacity-60 transition hover:opacity-100">
+                                Remove with Pro
+                            </Link>
+                        )}
                         {/* quiet, but always there: how a visitor flags a scam or an impersonator */}
                         {mode === "live" && pageId && (
                             <p className="mt-3">

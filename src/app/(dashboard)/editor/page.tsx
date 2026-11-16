@@ -47,6 +47,7 @@ export default async function EditorPage() {
             initialPublishedAt={page.publishedAt?.toISOString() ?? null}
             clicks={Object.fromEntries(clicks.map((row) => [row.blockId ?? "", row._count]))}
             reviews={reviews}
+            pro={user.plan === "PRO"}
         />
     );
 }

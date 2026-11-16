@@ -3,11 +3,35 @@ import { hasCaseStudy } from "@/lib/pages/links";
 
 export type Plan = "FREE" | "PRO";
 
-// Everything that could become a Pro feature, and whether it is one. None are yet: Roselle is
-// free while it's new. Deciding later is flipping `pro` to true here; publishing, the analytics
+// What Pro costs, in whole rupees, and how long each payment lasts. Paid once per period through
+// Razorpay (src/lib/billing.ts), in INR only for now. Change prices here.
+export const PRO_PLANS = {
+    monthly: { price: 249, days: 30 },
+    yearly: { price: 1999, days: 365 },
+} as const;
+export type BillingPeriod = keyof typeof PRO_PLANS;
+export const BILLING_PERIODS = Object.keys(PRO_PLANS) as BillingPeriod[];
+
+const DAY = 24 * 60 * 60 * 1000;
+
+// The plan an account is on right now: Pro runs out at proUntil (none: made Pro by hand, no end)
+export const planNow = (plan: Plan, proUntil: Date | null, now = new Date()): Plan => (plan === "PRO" && (!proUntil || proUntil > now) ? "PRO" : "FREE");
+
+// Pro paid for a period: from when the current one ends if it's still running, otherwise from now,
+// so paying early never loses days
+export function proUntilAfter(period: BillingPeriod, current: Date | null, now = new Date()) {
+    const from = current && current > now ? current : now;
+    return new Date(from.getTime() + PRO_PLANS[period].days * DAY);
+}
+
+// Everything that could become a Pro feature, and whether it is one. Only the badge is, for now:
+// the rest stays free while Roselle is new. Deciding later is flipping `pro` here; publishing, the analytics
 // screen and the pricing section on the landing page all read this list.
 // `usedBy` says whether a page uses it, which is how publishing checks a free page.
 export const FEATURES = {
+    // the "Composed with Roselle" line at the foot of the page. Nothing to remove before publishing:
+    // a free page just shows it (PageRenderer's `badge`).
+    noBadge: { label: "No Roselle badge on your page", pro: true, usedBy: () => false },
     photoBackground: { label: "Photo backgrounds", pro: false, usedBy: (page: PageDoc) => page.theme.background.kind === "image" },
     patterns: { label: "Printed pattern backgrounds", pro: false, usedBy: (page: PageDoc) => page.theme.background.kind === "pattern" },
     scheduling: { label: "Scheduled links", pro: false, usedBy: (page: PageDoc) => page.blocks.some((block) => block.startsAt || block.endsAt) },

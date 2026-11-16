@@ -234,6 +234,8 @@ locally with no accounts.
 | `ADMIN_EMAILS` | Who can open `/admin` (comma separated) |
 | `CONTACT_EMAIL` | Shown on the privacy and terms pages (defaults to `MAIL_FROM`) |
 | `CRON_SECRET` | Protects the daily job (`openssl rand -hex 32`) |
+| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | Razorpay API keys (Dashboard → Account & Settings → API Keys; test keys while building). Without them, Settings says Pro is coming soon |
+| `RAZORPAY_WEBHOOK_SECRET` | The secret of the webhook pointing at `/api/billing/webhook`, with the events `payment.captured` and `order.paid`. Switches Pro on even when the payer's browser closed before it could |
 | `CLOUDINARY_URL` | Photo storage; leave empty locally and photos are kept in the database |
 
 ### Scripts
@@ -317,10 +319,18 @@ redirecting, it can't be republished, and the owner is told why), restore it, or
 
 ## Plans
 
-Everything is free today. `src/lib/plans.ts` lists each feature that could become Pro (photo
-backgrounds, patterns, scheduling, SEO, music, maps, tips, 90-day analytics), all set to
-`pro: false`. Switch one on and free accounts can still try it in the editor, but Publish asks them
-to remove it, and the pricing section on the landing page moves it to the Pro card.
+Pro is ₹249 a month or ₹1,999 a year (`PRO_PLANS` in `src/lib/plans.ts`), paid once per period with
+Razorpay Standard Checkout (`src/lib/billing.ts`), the way the crm project does it: no automatic
+renewal, so no Razorpay Subscriptions to enable. For now it removes the "Composed with Roselle"
+badge; everything else is free. `src/lib/plans.ts` lists each feature that could become Pro, each
+with `pro: true/false`. Switch one on and free accounts can still try it in the editor, but Publish
+asks them to remove it, and the pricing section on the landing page moves it to the Pro card.
+
+A payment is checked with Razorpay itself (its order, amount and capture) before the account turns
+Pro, and counted once whether the browser or the webhook reports it first. Paying while on Pro adds
+on. Pro lasts until `proUntil`, then the page is Free again by itself; the daily job emails a week
+before, the day before and on the day. An account can still be made Pro by hand: set `plan` to `PRO`
+and leave `proUntil` empty, and it never ends.
 
 ## Known limits
 

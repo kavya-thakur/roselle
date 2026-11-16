@@ -13,6 +13,10 @@ process.env.ADMIN_EMAILS = "admin@example.com";
 // database (a test that wants Cloudinary sets its own fake address), and emails are kept below
 process.env.CLOUDINARY_URL = "";
 process.env.BREVO_API_KEY = "";
+// Razorpay is off unless a test turns it on (with a fake Razorpay, see billing.test.ts)
+process.env.RAZORPAY_KEY_ID = "";
+process.env.RAZORPAY_KEY_SECRET = "";
+process.env.RAZORPAY_WEBHOOK_SECRET = "";
 
 // Only the outside world is replaced; the route handlers, validation, sessions and database
 // queries are the real ones.
