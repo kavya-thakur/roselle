@@ -34,7 +34,8 @@ export function ContactForm({ pageId, blockId, button, serviceId, askDate = fals
         try {
             // where they came from, the same way a page view is counted, so analytics can say
             // which source brings enquiries and not just visits
-            const utmSource = new URLSearchParams(window.location.search).get("utm_source") ?? undefined;
+            const params = new URLSearchParams(window.location.search);
+            const utmSource = params.get("via") ?? params.get("utm_source") ?? undefined;
             await api("/enquiry", { method: "POST", body: { ...form, pageId, blockId, serviceId, referrer: document.referrer || undefined, utmSource } });
             setState("sent");
         } catch (failure) {

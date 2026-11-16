@@ -24,8 +24,9 @@ export function CopyLink({ username }: { username: string }) {
     }
 
     function openQr() {
-        // read here, not while rendering: the server doesn't know which address it's served at
-        setAddress(`${window.location.origin}/${username}`);
+        // read here, not while rendering: the server doesn't know which address it's served at.
+        // Tagged ?via=qr, so analytics can tell visits from print (flyers, cards) apart
+        setAddress(`${window.location.origin}/${username}?via=qr`);
         dialog.current?.showModal();
     }
 
@@ -76,7 +77,7 @@ export function CopyLink({ username }: { username: string }) {
                 </div>
                 <div className="flex flex-col items-center px-6 pt-6 pb-7">
                     {address && <QrCode value={address} size={232} className="rounded-2xl border border-line" />}
-                    <p className="mt-4 text-center text-sm text-muted">Scanning it opens {address.replace(/^https?:\/\//, "")}. Put it on anything printed.</p>
+                    <p className="mt-4 text-center text-sm text-muted">Scanning it opens {address.replace(/^https?:\/\//, "").replace(/\?via=qr$/, "")}. Put it on anything printed.</p>
                     <div className="mt-6 grid w-full grid-cols-2 gap-2.5">
                         <button onClick={() => download("png")} className="flex h-11 items-center justify-center gap-2 rounded-full bg-ink text-sm font-semibold text-white hover:bg-[#2e2e2e]">
                             <IconDownload size={16} /> PNG

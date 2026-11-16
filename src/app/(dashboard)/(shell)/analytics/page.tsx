@@ -5,13 +5,16 @@ import { IconArrowDownRight, IconArrowUpRight, IconMinus } from "@tabler/icons-r
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { prisma } from "@/lib/db/prisma";
-import { pageStats, RANGES, type PageStats, type Range } from "@/lib/analytics/stats";
+import { pageStats, RANGES, sourcesSummary, type PageStats, type Range } from "@/lib/analytics/stats";
 import { pageSchema, type Block } from "@/lib/validations/page";
 import { formatHours, formatMoney, formatNumber, formatPercent, shareOf } from "@/lib/utils/format";
 import { can } from "@/lib/plans";
 import { TrendChart } from "./TrendChart";
 import { EmptyState } from "@/components/EmptyState";
 import { SITE_HOST } from "@/lib/site";
+import { LinkIcon } from "@/components/SocialIcon";
+import { TrackedLinks } from "./TrackedLinks";
+import { UNKNOWN } from "@/lib/analytics/sources";
 
 export const metadata: Metadata = {
     title: "Analytics",
@@ -157,6 +160,8 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/analyt
                         />
                     </div>
                 </div>
+
+                <TrackedLinks username={user.page.username} />
             </div>
         </main>
     );
@@ -236,9 +241,20 @@ function Services({ rows, currency }: { rows: PageStats["services"]; currency: s
 
 // Which places send people who actually get in touch, not just people who look
 function Sources({ rows }: { rows: PageStats["sources"] }) {
+    const summary = sourcesSummary(rows);
+    const views = rows.reduce((sum, row) => sum + row.count, 0);
+    const unknown = rows.find((row) => row.label === UNKNOWN)?.count ?? 0;
+
     return (
         <section className="rounded-3xl bg-paper p-5 shadow-soft sm:p-6">
             <h2 className="text-lg font-semibold">Where they come from</h2>
+            {summary && <p className="mt-2 rounded-xl bg-blush px-3 py-2 text-sm font-semibold text-forest">{summary}</p>}
+            {/* a lot with no source: the fix is tagged links, just below */}
+            {views >= 10 && unknown / views > 0.4 && (
+                <p className="mt-2 text-xs text-muted">
+                    {Math.round((unknown / views) * 100)}% of visits don&apos;t say where they came from. Share the tagged links below to find out.
+                </p>
+            )}
             {rows.length === 0 ? (
                 <p className="mt-4 text-sm text-muted">Sources appear after your first visits.</p>
             ) : (
@@ -255,7 +271,12 @@ function Sources({ rows }: { rows: PageStats["sources"] }) {
                         {/* the top eight; the rest are too small to matter here */}
                         {rows.slice(0, 8).map((row) => (
                             <tr key={row.label} className="border-t border-line">
-                                <td className="max-w-0 truncate py-2.5 pr-3 font-medium">{row.label}</td>
+                                <td className="max-w-0 py-2.5 pr-3 font-medium">
+                                    <span className="flex items-center gap-2">
+                                        <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-sand text-ink">{row.icon ? <LinkIcon name={row.icon} size={14} /> : <span className="size-1.5 rounded-full bg-faint" />}</span>
+                                        <span className="truncate">{row.label}</span>
+                                    </span>
+                                </td>
                                 <td className="py-2.5 text-right text-muted tabular-nums">{formatNumber(row.count)}</td>
                                 <td className="py-2.5 text-right tabular-nums">{formatNumber(row.enquiries)}</td>
                                 <td className="py-2.5 text-right font-semibold tabular-nums">{formatNumber(row.booked)}</td>

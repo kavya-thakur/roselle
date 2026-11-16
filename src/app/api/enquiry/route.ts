@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
         }
 
         await prisma.enquiry.create({
-            data: { pageId, name, email, phone: phone || null, message, service: service?.name || null, wantedOn: wantedOn || null, source: sourceOf(referrer, utmSource) },
+            data: { pageId, name, email, phone: phone || null, message, service: service?.name || null, wantedOn: wantedOn || null, source: sourceOf(referrer, utmSource, req.headers.get("user-agent") ?? "") },
         });
 
         // saved either way; emailed only up to the day's limit (counted in the database, so it
