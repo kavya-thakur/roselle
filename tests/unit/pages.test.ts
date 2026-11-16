@@ -502,3 +502,26 @@ describe("messages the creator sends", () => {
 function blockSchemaParse(raw: object) {
     return pageSchema.shape.blocks.element.parse(raw);
 }
+
+describe("putting on a template", () => {
+    it("changes the look but keeps the header, the photo's shape and the text settings", async () => {
+        const { TEMPLATES, templateOf, wearTemplate } = await import("@/lib/pages/theme");
+        const [first, second] = TEMPLATES;
+        const mine = {
+            ...first.theme,
+            layout: { ...first.theme.layout, header: "classic" as const, avatar: "arch" as const, align: "left" as const },
+            type: { headingWeight: "heavy" as const, headingSize: "large" as const, textSize: "small" as const, textWeight: "bold" as const },
+        };
+
+        const worn = wearTemplate(mine, second.theme);
+        expect(worn.background).toEqual(second.theme.background);
+        expect(worn.font).toEqual(second.theme.font);
+        expect(worn.layout).toMatchObject({ header: "classic", avatar: "arch", align: "left", titles: second.theme.layout.titles });
+        expect(worn.type).toEqual(mine.type);
+        // still counted as wearing that template, even with its own header choices and keys saved in another order
+        expect(templateOf(worn)?.id).toBe(second.id);
+        expect(templateOf(JSON.parse(JSON.stringify(worn, Object.keys(worn).reverse().concat(Object.keys(worn.layout), Object.keys(worn.background), Object.keys(worn.font), Object.keys(worn.button), Object.keys(worn.type!)))))?.id).toBe(second.id);
+        // changed by hand: not that template any more
+        expect(templateOf({ ...worn, text: "#123456" })).toBeUndefined();
+    });
+});

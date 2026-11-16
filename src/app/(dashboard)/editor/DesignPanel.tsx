@@ -6,7 +6,7 @@ import { useBackToClose } from "@/components/useBackToClose";
 import { useState, type ReactNode, type Dispatch, type SetStateAction } from "react";
 import { IconAlertTriangle, IconArrowLeft, IconArrowsShuffle, IconChevronRight, IconColorPicker, IconPhoto } from "@tabler/icons-react";
 
-import { FONTS, TEMPLATES } from "@/lib/pages/theme";
+import { FONTS, TEMPLATES, templateOf, wearTemplate } from "@/lib/pages/theme";
 import { PATTERN_KEYS, PATTERN_LABELS, patternBackground } from "@/lib/pages/patterns";
 import type { PageDoc, Theme } from "@/lib/validations/page";
 import { smallInputClass } from "@/components/Field";
@@ -60,11 +60,12 @@ export function DesignPanel({ page, onChange: onPageChange }: { page: PageDoc; o
     useBackToClose(part !== null, () => setPart(null));
     const { theme, seo, profile } = page;
     // applied to the latest page (see HeaderPanel), so a background photo still uploading can't undo other changes
-    const onChange = (next: Theme) => onPageChange((current) => ({ ...current, theme: next }));
     const set = <K extends keyof Theme>(key: K, value: Theme[K]) => onPageChange((current) => ({ ...current, theme: { ...current.theme, [key]: value } }));
     const setBackground = (patch: Partial<Theme["background"]>) => onPageChange((current) => ({ ...current, theme: { ...current.theme, background: { ...current.theme.background, ...patch } } }));
     const setSeo = (patch: Partial<PageDoc["seo"]>) => onPageChange((current) => ({ ...current, seo: { ...current.seo, ...patch } }));
-    const templateName = TEMPLATES.find((template) => JSON.stringify(template.theme) === JSON.stringify(theme))?.name ?? "Custom";
+    const templateName = templateOf(theme)?.name ?? "Custom";
+    // a template changes the look; the Header section's choices and the text settings stay (wearTemplate)
+    const wear = (template: Theme) => onPageChange((current) => ({ ...current, theme: wearTemplate(current.theme, template) }));
 
     const issues = readabilityIssues(theme);
     const type = theme.type ?? DEFAULT_TYPE;
@@ -151,7 +152,7 @@ export function DesignPanel({ page, onChange: onPageChange }: { page: PageDoc; o
                         // a different template each time, never the one already showing
                         onClick={() => {
                             const others = TEMPLATES.filter((template) => template.name !== templateName);
-                            onChange(others[Math.floor(Math.random() * others.length)].theme);
+                            wear(others[Math.floor(Math.random() * others.length)].theme);
                         }}
                         className="ml-auto flex h-9 items-center gap-1.5 rounded-full border border-line px-4 text-sm font-bold transition hover:border-ink"
                     >
@@ -195,7 +196,7 @@ export function DesignPanel({ page, onChange: onPageChange }: { page: PageDoc; o
                         const chosen = templateName === template.name;
                         const { button } = template.theme;
                         return (
-                            <button key={template.id} onClick={() => onChange(template.theme)} aria-pressed={chosen} className="group text-center">
+                            <button key={template.id} onClick={() => wear(template.theme)} aria-pressed={chosen} className="group text-center">
                                 {/* a tiny page: its background, "Aa" in its heading font and one of its buttons */}
                                 <span
                                     className={`flex aspect-3/4 flex-col justify-between overflow-hidden rounded-2xl p-3 text-left transition group-hover:-translate-y-0.5 ${chosen ? "ring-3 ring-pink ring-offset-2" : "ring-1 ring-line"}`}
