@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { destinationOf, hasCaseStudy, isLive, musicEmbed, safeHref, targetOf, tipHref, videoEmbed } from "@/lib/pages/links";
+import { destinationOf, hasCaseStudy, isLive, linkProblem, musicEmbed, safeHref, socialHref, targetOf, tipHref, videoEmbed } from "@/lib/pages/links";
 import { iconFromUrl, newBlock, starterPage, titleFromUrl } from "@/lib/pages/blocks";
 import { FEATURES, lockedFeatures } from "@/lib/plans";
 import { pageSchema, themeSchema, type Block } from "@/lib/validations/page";
@@ -25,6 +25,52 @@ describe("safeHref", () => {
         expect(safeHref("example.com/shop")).toBe("https://example.com/shop");
         expect(safeHref("/media/abc123")).toBe("/media/abc123");
         expect(safeHref("https://")).toBeUndefined();
+    });
+
+    it("keeps a whole link pasted after the start the editor fills in", () => {
+        expect(safeHref("https://instagram.com/https://www.instagram.com/ada?utm_source=qr")).toBe("https://www.instagram.com/ada?utm_source=qr");
+        expect(safeHref("https://linkedin.com/in/https://www.linkedin.com/in/ada-1/")).toBe("https://www.linkedin.com/in/ada-1/");
+        expect(safeHref("https://tiktok.com/@www.tiktok.com/@ada")).toBe("https://www.tiktok.com/@ada");
+        expect(safeHref("https://https://ada.studio")).toBe("https://ada.studio");
+        // a handle typed after it, and links that really hold another address, stay as they are
+        expect(safeHref("https://instagram.com/ada.thakur")).toBe("https://instagram.com/ada.thakur");
+        expect(safeHref("http://www.ada.studio")).toBe("http://www.ada.studio");
+        expect(safeHref("https://web.archive.org/web/2020/https://ada.studio")).toBe("https://web.archive.org/web/2020/https://ada.studio");
+        // pasted without https://, or with the @ the start already has
+        expect(safeHref("https://instagram.com/instagram.com/ada")).toBe("https://instagram.com/ada");
+        expect(safeHref("https://linkedin.com/in/linkedin.com/in/ada-1")).toBe("https://linkedin.com/in/ada-1");
+        expect(safeHref("https://tiktok.com/@@ada")).toBe("https://tiktok.com/@ada");
+        expect(safeHref("https://instagram.com/@ada")).toBe("https://instagram.com/ada");
+        expect(safeHref("https://x.com/@ada")).toBe("https://x.com/ada");
+        expect(safeHref("mailto:mailto:ada@studio.com")).toBe("mailto:ada@studio.com");
+    });
+
+    it("turns a bare email or phone number into one a tap opens", () => {
+        expect(safeHref("ada@studio.com")).toBe("mailto:ada@studio.com");
+        expect(safeHref("+91 98765 43210")).toBe("tel:+919876543210");
+        expect(safeHref("2024")).toBeUndefined();
+    });
+});
+
+describe("socialHref", () => {
+    it("makes a profile link from a handle", () => {
+        expect(socialHref("instagram", "@sadaf.islost")).toBe("https://instagram.com/sadaf.islost");
+        expect(socialHref("instagram", "sadaf.islost")).toBe("https://instagram.com/sadaf.islost");
+        expect(socialHref("tiktok", "@ada")).toBe("https://tiktok.com/@ada");
+        expect(socialHref("youtube", "ada")).toBe("https://youtube.com/@ada");
+        expect(socialHref("email", "ada@studio.com")).toBe("mailto:ada@studio.com");
+        // a whole link stays a whole link; a website has no handle
+        expect(socialHref("instagram", "instagram.com/ada")).toBe("https://instagram.com/ada");
+        expect(socialHref("website", "ada")).toBeUndefined();
+        expect(socialHref("instagram", "javascript:alert(1)")).toBeUndefined();
+    });
+
+    it("tells the editor when an address won't work", () => {
+        expect(linkProblem(socialHref("instagram", "https://instagram.com/"), "https://instagram.com/")).toBe("Add your username at the end");
+        expect(linkProblem(safeHref("mailto:"), "mailto:")).toMatch(/can't open/);
+        expect(linkProblem(safeHref("my site"), "my site")).toMatch(/can't open/);
+        expect(linkProblem(socialHref("instagram", "@ada"), "@ada")).toBeUndefined();
+        expect(linkProblem(undefined, "")).toBeUndefined();
     });
 });
 
@@ -56,6 +102,7 @@ describe("page documents", () => {
     it("finds the player address for YouTube and Vimeo", () => {
         expect(videoEmbed("https://youtu.be/dQw4w9WgXcQ")).toBe("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
         expect(videoEmbed("https://vimeo.com/76979871")).toBe("https://player.vimeo.com/video/76979871");
+        expect(videoEmbed("https://www.youtube.com/live/dQw4w9WgXcQ?si=x")).toBe("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
         expect(videoEmbed("https://example.com")).toBeUndefined();
     });
 });

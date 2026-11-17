@@ -1,4 +1,5 @@
 import { SITE_URL } from "@/lib/site";
+import { socialHref } from "./links";
 import type { PageDoc } from "@/lib/validations/page";
 
 // What a creator page tells search engines about the person behind it, as schema.org JSON-LD:
@@ -22,7 +23,7 @@ export function profileJsonLd(doc: PageDoc, username: string) {
             description: doc.profile.bio || undefined,
             image: absolute(doc.profile.avatar),
             // their other profiles: how Google knows this Instagram and this page are the same person
-            sameAs: doc.profile.socials.map((social) => social.url).filter((href) => /^https:\/\//.test(href)),
+            sameAs: doc.profile.socials.map((social) => socialHref(social.platform, social.url)).filter((href) => href?.startsWith("https://")),
             makesOffer: services.length
                 ? services.map((item) => ({
                       "@type": "Offer",

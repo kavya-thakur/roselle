@@ -5,7 +5,7 @@ import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { IconCrop, IconLoader2, IconPlus, IconTrash, IconX } from "@tabler/icons-react";
 
 import { SOCIAL_LABELS, SocialIcon } from "@/components/SocialIcon";
-import { safeHref } from "@/lib/pages/links";
+import { linkProblem, safeHref, socialHref } from "@/lib/pages/links";
 import { SOCIALS, type PageDoc, type Theme } from "@/lib/validations/page";
 import { FieldRow, ImageInput, StyleTiles, uploadImage } from "./controls";
 import { PhotoEditor } from "./PhotoEditor";
@@ -177,27 +177,33 @@ export function HeaderPanel({ page, onChange }: { page: PageDoc; onChange: Dispa
 
                 <FieldRow label="Social icons" hint="Shown under your bio">
                     <div className="space-y-2">
-                        {profile.socials.map((social) => (
-                            <div key={social.platform} className="flex items-center gap-2">
-                                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-sand" title={SOCIAL_LABELS[social.platform]}>
-                                    <SocialIcon platform={social.platform} size={18} />
-                                </span>
-                                <input
-                                    value={social.url}
-                                    onChange={(event) => setProfile({ socials: profile.socials.map((existing) => (existing.platform === social.platform ? { ...existing, url: event.target.value } : existing)) })}
-                                    placeholder={social.platform === "email" ? "mailto:you@studio.com" : `Your ${SOCIAL_LABELS[social.platform]} link`}
-                                    aria-label={`${SOCIAL_LABELS[social.platform]} link`}
-                                    className={`${field} h-11 min-w-0 text-sm`}
-                                />
-                                <button
-                                    onClick={() => setProfile({ socials: profile.socials.filter((existing) => existing.platform !== social.platform) })}
-                                    aria-label={`Remove ${SOCIAL_LABELS[social.platform]}`}
-                                    className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted hover:bg-sand hover:text-ink"
-                                >
-                                    <IconX size={16} />
-                                </button>
-                            </div>
-                        ))}
+                        {profile.socials.map((social) => {
+                            const problem = linkProblem(socialHref(social.platform, social.url), social.url);
+                            return (
+                                <div key={social.platform}>
+                                    <div className="flex items-center gap-2">
+                                        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-sand" title={SOCIAL_LABELS[social.platform]}>
+                                            <SocialIcon platform={social.platform} size={18} />
+                                        </span>
+                                        <input
+                                            value={social.url}
+                                            onChange={(event) => setProfile({ socials: profile.socials.map((existing) => (existing.platform === social.platform ? { ...existing, url: event.target.value } : existing)) })}
+                                            placeholder={social.platform === "email" ? "mailto:you@studio.com" : `Your ${SOCIAL_LABELS[social.platform]} link`}
+                                            aria-label={`${SOCIAL_LABELS[social.platform]} link`}
+                                            className={`${field} h-11 min-w-0 text-sm`}
+                                        />
+                                        <button
+                                            onClick={() => setProfile({ socials: profile.socials.filter((existing) => existing.platform !== social.platform) })}
+                                            aria-label={`Remove ${SOCIAL_LABELS[social.platform]}`}
+                                            className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted hover:bg-sand hover:text-ink"
+                                        >
+                                            <IconX size={16} />
+                                        </button>
+                                    </div>
+                                    {problem && <p className="mt-1 ml-13 text-xs text-danger">{problem}</p>}
+                                </div>
+                            );
+                        })}
 
                         {unused.length > 0 &&
                             (picking ? (

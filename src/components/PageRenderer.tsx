@@ -5,7 +5,7 @@ import { IconArrowDown, IconArrowRight, IconArrowUpRight, IconStarFilled, IconCl
 
 import { FONTS } from "@/lib/pages/theme";
 import { pageBackground } from "@/lib/pages/patterns";
-import { destinationOf, hasCaseStudy, isLive, mapEmbed, mapLink, musicEmbed, safeHref, targetOf, TIP_LABELS, videoEmbed } from "@/lib/pages/links";
+import { destinationOf, hasCaseStudy, isLive, mapEmbed, mapLink, musicEmbed, safeHref, socialHref, targetOf, TIP_LABELS, videoEmbed } from "@/lib/pages/links";
 import type { Block, PageDoc, Theme } from "@/lib/validations/page";
 import type { PublicReview } from "@/lib/reviews";
 import { LinkIcon, SocialIcon } from "./SocialIcon";
@@ -186,7 +186,7 @@ function Profile({ profile, centered, size = "regular", cta }: ProfileProps) {
             {profile.socials.length > 0 && (
                 <ul className={`mt-5 flex flex-wrap gap-1 ${centered ? "justify-center" : "-ml-2.5"}`}>
                     {profile.socials.map((social) => {
-                        const target = safeHref(social.url);
+                        const target = socialHref(social.platform, social.url);
                         if (!target) return null;
                         return (
                             <li key={social.platform}>
