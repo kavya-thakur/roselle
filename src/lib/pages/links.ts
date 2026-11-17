@@ -4,12 +4,54 @@ import type { Block, TipProvider } from "@/lib/validations/page";
 // through: anything else ("javascript:...") could run code on a visitor's browser under our
 // domain. A bare "example.com" gets https:// in front, since that's what people type.
 export function safeHref(raw: string) {
-    const value = raw.trim();
-    if (value === "" || value === "https://" || value === "http://") return undefined;
+    const value = raw
+        .trim()
+        // The editor fills in the start ("https://instagram.com/") for a handle to follow, and people paste
+        // their whole link after it: "https://instagram.com/https://www.instagram.com/ada", or
+        // ".../instagram.com/ada". Keep the pasted one.
+        .replace(/^https?:\/\/(?:([\w-]+(?:\.[\w-]+)+)\/(?:in\/|@)?(?=https?:\/\/|www\.|\1\/)|(?=https?:\/\/))/i, "")
+        .replace(/^(mailto:)+/i, "mailto:")
+        // ...or type the @ the start already has (tiktok.com/@@ada), or one Instagram and X don't use
+        .replace(/\/@@/, "/@")
+        .replace(/^(https:\/\/(?:www\.)?(?:instagram|x|twitter)\.com\/)@/i, "$1");
+    if (value === "" || /^(https?:\/\/|mailto:|tel:)$/i.test(value)) return undefined;
     if (/^(https?:\/\/|mailto:|tel:)/i.test(value)) return value;
     // our own uploaded images
     if (/^\/media\/[\w-]+$/.test(value)) return value;
+    // a bare email or phone number: open the mail app or the dialler
+    if (/^[\w.+-]+@[\w-]+(\.[\w-]+)+$/.test(value)) return `mailto:${value}`;
+    if (/^\+?\(?\d[\d\s()-]{5,}\d$/.test(value)) return `tel:${value.replace(/[^\d+]/g, "")}`;
     if (/^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(value)) return `https://${value}`;
+    return undefined;
+}
+
+// Profile addresses a handle goes on the end of
+const PROFILE_PAGES: Partial<Record<string, string>> = {
+    instagram: "https://instagram.com/",
+    x: "https://x.com/",
+    tiktok: "https://tiktok.com/@",
+    youtube: "https://youtube.com/@",
+    threads: "https://threads.net/@",
+    github: "https://github.com/",
+    linkedin: "https://linkedin.com/in/",
+    dribbble: "https://dribbble.com/",
+    behance: "https://behance.net/",
+};
+
+// Where a social icon, or a link button wearing one, goes. People often type just their handle
+// ("@sadaf.islost") where the link should be; a handle has no / or :, so it's never taken for a link.
+export function socialHref(platform: string, raw: string) {
+    const handle = raw.trim().match(/^@?([\w.-]+)$/)?.[1];
+    const page = PROFILE_PAGES[platform];
+    return handle && page ? page + handle : safeHref(raw);
+}
+
+// What the editor says under an address that won't take a visitor where it should, or undefined
+export function linkProblem(href: string | undefined, raw: string) {
+    if (!raw.trim()) return undefined;
+    if (!href) return "Visitors can't open this. Paste the whole link, like https://instagram.com/yourname";
+    // a ready-made start from Add with nothing after it: the button would open Instagram's home page
+    if ([...Object.values(PROFILE_PAGES), "https://open.spotify.com/"].includes(raw.trim())) return "Add your username at the end";
     return undefined;
 }
 
@@ -23,7 +65,7 @@ export function isLive(block: Block, now = new Date()) {
 
 // A YouTube or Vimeo page address -> the player address an <iframe> can show
 export function videoEmbed(url: string) {
-    const youtube = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})/);
+    const youtube = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{11})/);
     if (youtube) return `https://www.youtube-nocookie.com/embed/${youtube[1]}`;
 
     const vimeo = url.match(/vimeo\.com\/(\d+)/);
@@ -92,7 +134,8 @@ export function tipHref(provider: TipProvider, raw: string) {
 // The public page and the click counter (/go) both ask this, so they always agree.
 export function targetOf(block: Block) {
     if (block.type === "tip") return tipHref(block.provider, block.handle);
-    if (block.type === "link" || block.type === "image" || block.type === "project") return safeHref(block.url);
+    if (block.type === "link") return socialHref(block.icon, block.url);
+    if (block.type === "image" || block.type === "project") return safeHref(block.url);
     return undefined;
 }
 

@@ -4,7 +4,7 @@ import { Dropdown } from "@/components/Dropdown";
 import { IconArrowUp, IconPlus, IconX } from "@tabler/icons-react";
 
 import { smallInputClass } from "@/components/Field";
-import { TIP_LABELS, tipHref } from "@/lib/pages/links";
+import { linkProblem, musicEmbed, targetOf, TIP_LABELS, tipHref, videoEmbed } from "@/lib/pages/links";
 import { MAX_GALLERY, TIP_PROVIDERS, type Block, type TipProvider } from "@/lib/validations/page";
 
 type Picture = { src: string; alt: string };
@@ -29,7 +29,8 @@ export function BlockForm({ block, onChange }: { block: Block; onChange: (change
     const patchImages = (update: (images: Picture[]) => Picture[]) => onChange((current) => ("images" in current ? { ...current, images: update(current.images) } : current) as Block);
 
     // one helper for a text field bound to a property of this block
-    const text = (key: string, label: string, options: { placeholder?: string; long?: boolean; autoFocus?: boolean } = {}) => {
+    // (`problem`: a warning under it, for an address visitors couldn't open)
+    const text = (key: string, label: string, options: { placeholder?: string; long?: boolean; autoFocus?: boolean; problem?: string } = {}) => {
         const id = `${block.id}-${key}`;
         const value = (block as Record<string, unknown>)[key] as string;
         const change = (next: string) => patch({ [key]: next });
@@ -42,6 +43,7 @@ export function BlockForm({ block, onChange }: { block: Block; onChange: (change
                 ) : (
                     <input id={id} autoFocus={options.autoFocus} value={value} onChange={(event) => change(event.target.value)} placeholder={options.placeholder} className={smallInputClass} />
                 )}
+                {options.problem && <p className="mt-1 text-xs text-danger">{options.problem}</p>}
             </div>
         );
     };
@@ -51,7 +53,7 @@ export function BlockForm({ block, onChange }: { block: Block; onChange: (change
             {block.type === "link" && (
                 <>
                     {text("title", "Title", { placeholder: "Listen to my new record", autoFocus: true })}
-                    {text("url", "Link", { placeholder: "https://" })}
+                    {text("url", "Link", { placeholder: "https://", problem: linkProblem(targetOf(block), block.url) })}
                     {text("subtitle", "A second line (optional)", { placeholder: "New prints every Friday" })}
                     {text("code", "Discount code (optional)", { placeholder: "KAVYA10" })}
                     <div>
@@ -84,7 +86,7 @@ export function BlockForm({ block, onChange }: { block: Block; onChange: (change
 
             {block.type === "video" && (
                 <>
-                    {text("url", "YouTube or Vimeo link", { placeholder: "https://youtube.com/watch?v=…" })}
+                    {text("url", "YouTube or Vimeo link", { placeholder: "https://youtube.com/watch?v=…", problem: block.url.trim() && !videoEmbed(block.url) ? "Paste the link of one YouTube or Vimeo video" : undefined })}
                     {text("title", "Title")}
                 </>
             )}
@@ -209,7 +211,11 @@ export function BlockForm({ block, onChange }: { block: Block; onChange: (change
 
             {block.type === "music" && (
                 <>
-                    {text("url", "Spotify, Apple Music or SoundCloud link", { placeholder: "https://open.spotify.com/track/…" })}
+                    {text("url", "Spotify, Apple Music or SoundCloud link", {
+                        placeholder: "https://open.spotify.com/track/…",
+                        // short share links (spotify.link, on.soundcloud.com) can't be played on the page
+                        problem: block.url.trim() && !musicEmbed(block.url) ? "Paste the full link from the browser, like https://open.spotify.com/track/…" : undefined,
+                    })}
                     {text("title", "Title (for screen readers)")}
                 </>
             )}
