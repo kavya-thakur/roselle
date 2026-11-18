@@ -120,7 +120,7 @@ export function InboxView({ enquiries: initial, currency: initialCurrency, creat
 
     return (
         <main className="flex-1 overflow-y-auto">
-            <div className="mx-auto max-w-4xl px-5 py-8 sm:px-6 sm:py-12">
+            <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6 sm:py-12">
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
                         <h1 className="font-display text-5xl">Inbox</h1>
@@ -161,7 +161,8 @@ export function InboxView({ enquiries: initial, currency: initialCurrency, creat
                 ) : shown.length === 0 ? (
                     <EmptyState compact picture="tray" title={EMPTY_TABS[tab]} />
                 ) : (
-                    <ul className="mt-5 space-y-3">
+                    // two side by side on wide screens; items-start so opening one card's panel doesn't stretch its neighbour
+                    <ul className="mt-5 grid items-start gap-3 xl:grid-cols-2">
                         {shown.map((enquiry) => (
                             <EnquiryCard
                                 key={enquiry.id}
