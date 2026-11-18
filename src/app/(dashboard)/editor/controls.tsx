@@ -12,7 +12,7 @@ import { LINK_ICONS, type LinkIconName } from "@/lib/validations/page";
 import { safeHref } from "@/lib/pages/links";
 import { sized } from "@/lib/media/sized";
 import { moved, useSortable } from "./sortable";
-import { PhotoEditor } from "./PhotoEditor";
+import { PhotoEditor, rememberEdit, type Edit } from "./PhotoEditor";
 import { useBackToClose } from "@/components/useBackToClose";
 
 // The small building blocks the editor's three panels share
@@ -139,11 +139,13 @@ export function ImageInput({ id, value, onChange, placeholder = "https://… or 
     const [editing, setEditing] = useState(false);
     useBackToClose(editing, () => setEditing(false));
 
-    async function upload(file: File) {
+    async function upload(file: File, edit?: Edit) {
         setUploading(true);
         setError(null);
         try {
-            onChange(await uploadImage(file));
+            const url = await uploadImage(file);
+            if (edit) rememberEdit(url, edit);
+            onChange(url);
         } catch (uploadError) {
             setError((uploadError as Error).message);
         } finally {
@@ -181,9 +183,9 @@ export function ImageInput({ id, value, onChange, placeholder = "https://… or 
                     <PhotoEditor
                         source={value}
                         onCancel={() => setEditing(false)}
-                        onDone={(file) => {
+                        onDone={(file, edit) => {
                             setEditing(false);
-                            upload(file);
+                            upload(file, edit);
                         }}
                     />
                 )}

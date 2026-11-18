@@ -4,13 +4,15 @@ import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { IconFlipHorizontal, IconLoader2, IconRotate2, IconRotateClockwise2, IconX } from "@tabler/icons-react";
 
 import { sized } from "@/lib/media/sized";
+import { toast } from "@/components/Toast";
 
 // Crop, rotate and flip a photo before it goes on the page, drawn on a canvas in the browser:
 // no library, and the server only ever sees the finished picture.
 // The crop box is kept as fractions (0-1) of the turned photo, so it doesn't care how big the
 // photo is on screen; it's dragged to move it and by its corners to resize it.
 // Whoever opens it also wires the Back gesture to close it (useBackToClose): it can't do that
-// itself, as it's always open while it exists.
+// itself, as it's always open while it exists. After uploading the result they hand it to
+// rememberEdit, so cropping it again starts from the whole photo, not from the crop.
 
 type Box = { x: number; y: number; w: number; h: number };
 type Corner = "nw" | "ne" | "sw" | "se";
@@ -28,6 +30,28 @@ const MIN = 0.08;
 // as big as uploads get anyway (controls.tsx, LONGEST_SIDE)
 const LONGEST_SIDE = 1800;
 
+// What a saved crop was cut from and how, by the address it was uploaded to
+export type Edit = { original: string; turns: number; flipped: boolean; aspect: number | null; box: Box };
+const EDITS = "roselle:photo-edits";
+
+// ponytail: kept in this browser only (another device crops the crop); store it with the page if that matters
+function edits(): Record<string, Edit> {
+    try {
+        return JSON.parse(localStorage.getItem(EDITS) ?? "{}");
+    } catch {
+        return {};
+    }
+}
+
+export function rememberEdit(url: string, edit: Edit) {
+    try {
+        // the last 50 crops is plenty, and keeps it small
+        localStorage.setItem(EDITS, JSON.stringify(Object.fromEntries([...Object.entries(edits()), [url, edit]].slice(-50))));
+    } catch {
+        // private browsing or storage full: re-cropping just starts from the cropped photo
+    }
+}
+
 const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value));
 
 // The largest box of this shape (width/height in pixels) that fits, centred
@@ -38,31 +62,42 @@ function fitted(aspect: number | null, width: number, height: number): Box {
     return { x: (1 - w) / 2, y: (1 - h) / 2, w, h };
 }
 
-async function load(source: File | string) {
+async function load(source: string) {
     const image = new Image();
     // a photo from another address (Cloudinary, Unsplash) has to allow it, or the canvas won't hand its pixels back
     image.crossOrigin = "anonymous";
-    image.src = typeof source === "string" ? sized(source, LONGEST_SIDE, "jpg") : URL.createObjectURL(source);
+    image.src = sized(source, LONGEST_SIDE, "jpg");
     await image.decode();
     return image;
 }
 
-export function PhotoEditor({ source, onDone, onCancel }: { source: File | string; onDone: (file: File) => void; onCancel: () => void }) {
+// `shape` is the crop it opens with (1 for a round profile photo); null is the whole photo
+export function PhotoEditor({ source, shape = null, onDone, onCancel }: { source: string; shape?: number | null; onDone: (file: File, edit: Edit) => void; onCancel: () => void }) {
     const dialog = useRef<HTMLDialogElement>(null);
     const canvas = useRef<HTMLCanvasElement>(null);
     const frame = useRef<HTMLDivElement>(null);
     const [image, setImage] = useState<HTMLImageElement | null>(null);
     const [failed, setFailed] = useState(false);
-    const [turns, setTurns] = useState(0);
-    const [flipped, setFlipped] = useState(false);
-    const [aspect, setAspect] = useState<number | null>(null);
-    const [box, setBox] = useState<Box>(WHOLE);
+    // cropped here before: open the whole photo again, with that crop where it was
+    const [before] = useState(() => edits()[source]);
+    const [turns, setTurns] = useState(before?.turns ?? 0);
+    const [flipped, setFlipped] = useState(before?.flipped ?? false);
+    const [aspect, setAspect] = useState<number | null>(before ? before.aspect : shape);
+    const [box, setBox] = useState<Box>(before?.box ?? WHOLE);
+    const [saving, setSaving] = useState(false);
     const drag = useRef<{ kind: "move" | Corner; x: number; y: number; start: Box } | null>(null);
+    const original = before?.original ?? source;
 
     useEffect(() => {
         dialog.current?.showModal();
-        load(source).then(setImage, () => setFailed(true));
-    }, [source]);
+        // the original gone (deleted from storage): crop what's on the page instead
+        load(original)
+            .catch(() => load(source))
+            .then((loaded) => {
+                setImage(loaded);
+                if (!before) setBox(fitted(shape, loaded.naturalWidth, loaded.naturalHeight));
+            }, () => setFailed(true));
+    }, [original, source, before, shape]);
 
     // the photo turned a quarter at a time: on its side, its width and height swap
     const sideways = turns % 2 === 1;
@@ -137,14 +172,22 @@ export function PhotoEditor({ source, onDone, onCancel }: { source: File | strin
     }
 
     async function done() {
-        const source = canvas.current!;
-        const out = document.createElement("canvas");
-        out.width = Math.round(box.w * source.width);
-        out.height = Math.round(box.h * source.height);
-        out.getContext("2d")!.drawImage(source, box.x * source.width, box.y * source.height, out.width, out.height, 0, 0, out.width, out.height);
-        // a JPG: every browser can write one (Safari can't write WebP), and photos are what this is for
-        const blob = await new Promise<Blob | null>((resolve) => out.toBlob(resolve, "image/jpeg", 0.9));
-        if (blob) onDone(new File([blob], "photo.jpg", { type: "image/jpeg" }));
+        setSaving(true);
+        try {
+            const drawn = canvas.current!;
+            const out = document.createElement("canvas");
+            out.width = Math.max(1, Math.round(box.w * drawn.width));
+            out.height = Math.max(1, Math.round(box.h * drawn.height));
+            out.getContext("2d")!.drawImage(drawn, box.x * drawn.width, box.y * drawn.height, out.width, out.height, 0, 0, out.width, out.height);
+            // a JPG: every browser can write one (Safari can't write WebP), and photos are what this is for
+            const blob = await new Promise<Blob | null>((resolve) => out.toBlob(resolve, "image/jpeg", 0.9));
+            if (!blob) throw new Error("no picture");
+            onDone(new File([blob], "photo.jpg", { type: "image/jpeg" }), { original, turns, flipped, aspect, box });
+        } catch {
+            // a photo whose website won't share its pixels lands here, instead of the button doing nothing
+            toast.error("Couldn't save the photo", "Upload it from your device, then crop it.");
+            setSaving(false);
+        }
     }
 
     const corners: Corner[] = ["nw", "ne", "sw", "se"];
@@ -187,9 +230,10 @@ export function PhotoEditor({ source, onDone, onCancel }: { source: File | strin
                                         key={corner}
                                         onPointerDown={(event) => startDrag(event, corner)}
                                         aria-hidden
-                                        className={`absolute size-7 ${corner.includes("n") ? "-top-3.5" : "-bottom-3.5"} ${corner.includes("w") ? "-left-3.5" : "-right-3.5"} ${corner === "nw" || corner === "se" ? "cursor-nwse-resize" : "cursor-nesw-resize"}`}
+                                        // a finger-sized (44px) target around the dot
+                                        className={`absolute size-11 ${corner.includes("n") ? "-top-5.5" : "-bottom-5.5"} ${corner.includes("w") ? "-left-5.5" : "-right-5.5"} ${corner === "nw" || corner === "se" ? "cursor-nwse-resize" : "cursor-nesw-resize"}`}
                                     >
-                                        <span className="absolute inset-2 rounded-full border-2 border-ink bg-white" />
+                                        <span className="absolute inset-3 rounded-full border-2 border-ink bg-white shadow" />
                                     </span>
                                 ))}
                             </div>
@@ -223,17 +267,19 @@ export function PhotoEditor({ source, onDone, onCancel }: { source: File | strin
                             <IconFlipHorizontal size={18} />
                         </button>
                         <button
+                            // back to how it opens on a fresh photo: unturned, in its usual shape
                             onClick={() => {
                                 setTurns(0);
                                 setFlipped(false);
-                                chooseAspect(null);
+                                setAspect(shape);
+                                if (image) setBox(fitted(shape, image.naturalWidth, image.naturalHeight));
                             }}
                             disabled={!image}
                             className="h-10 rounded-full px-3 text-[13px] font-semibold text-muted hover:text-ink disabled:opacity-40"
                         >
                             Reset
                         </button>
-                        <button onClick={done} disabled={!image} className="ml-auto h-10 rounded-full bg-ink px-5 text-sm font-semibold text-white hover:bg-[#2e2e2e] disabled:opacity-40">
+                        <button onClick={done} disabled={!image || saving} className="ml-auto h-10 rounded-full bg-ink px-5 text-sm font-semibold text-white hover:bg-[#2e2e2e] disabled:opacity-40">
                             Save photo
                         </button>
                     </div>

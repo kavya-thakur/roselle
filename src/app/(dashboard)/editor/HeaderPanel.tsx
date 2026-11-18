@@ -8,7 +8,7 @@ import { SOCIAL_LABELS, SocialIcon } from "@/components/SocialIcon";
 import { linkProblem, safeHref, socialHref } from "@/lib/pages/links";
 import { SOCIALS, type PageDoc, type Theme } from "@/lib/validations/page";
 import { FieldRow, ImageInput, StyleTiles, uploadImage } from "./controls";
-import { PhotoEditor } from "./PhotoEditor";
+import { PhotoEditor, rememberEdit, type Edit } from "./PhotoEditor";
 import { useBackToClose } from "@/components/useBackToClose";
 
 const field = "w-full rounded-xl border border-line bg-paper px-4 text-[15px] outline-none transition focus:border-ink";
@@ -29,11 +29,13 @@ export function HeaderPanel({ page, onChange }: { page: PageDoc; onChange: Dispa
     const [cropping, setCropping] = useState(false);
     useBackToClose(cropping, () => setCropping(false));
 
-    async function changePhoto(file: File) {
+    async function changePhoto(file: File, edit?: Edit) {
         setUploading(true);
         setUploadError(null);
         try {
-            setProfile({ avatar: await uploadImage(file) });
+            const avatar = await uploadImage(file);
+            if (edit) rememberEdit(avatar, edit);
+            setProfile({ avatar });
         } catch (error) {
             setUploadError((error as Error).message);
         } finally {
@@ -132,10 +134,12 @@ export function HeaderPanel({ page, onChange }: { page: PageDoc; onChange: Dispa
                         {cropping && (
                             <PhotoEditor
                                 source={profile.avatar}
+                                // the shape it's shown in: a circle, an arch, or the whole width (poster)
+                                shape={theme.layout.header === "poster" ? null : theme.layout.avatar === "arch" ? 4 / 5 : 1}
                                 onCancel={() => setCropping(false)}
-                                onDone={(file) => {
+                                onDone={(file, edit) => {
                                     setCropping(false);
-                                    changePhoto(file);
+                                    changePhoto(file, edit);
                                 }}
                             />
                         )}
