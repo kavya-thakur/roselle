@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { IconArrowDown } from "@tabler/icons-react";
+import { IconArrowDown, IconArrowUp } from "@tabler/icons-react";
 
 // Once the top of the page has scrolled away: a slim bar with the way to hire the creator, always one
 // tap from wherever the visitor is reading. It steps aside while the services (or the contact form)
-// are on screen. On a big screen it's as wide as the page's card.
+// are on screen, and comes back once they're scrolled past, pointing up at them then. On a big
+// screen it's as wide as the page's card.
 export function HireBar({ target, label, detail }: { target: string; label: string; detail?: string }) {
     const [show, setShow] = useState(false);
+    // the services are behind the visitor (scrolled past), so the arrow points up
+    const [above, setAbove] = useState(false);
 
     useEffect(() => {
         const intro = document.getElementById("page-intro");
@@ -16,7 +19,10 @@ export function HireBar({ target, label, detail }: { target: string; label: stri
 
         const onScreen = new Map<Element, boolean>();
         const observer = new IntersectionObserver((entries) => {
-            for (const entry of entries) onScreen.set(entry.target, entry.isIntersecting);
+            for (const entry of entries) {
+                onScreen.set(entry.target, entry.isIntersecting);
+                if (entry.target === goal && !entry.isIntersecting) setAbove(entry.boundingClientRect.top < 0);
+            }
             setShow(onScreen.get(intro) === false && onScreen.get(goal) === false);
         });
         observer.observe(intro);
@@ -38,7 +44,7 @@ export function HireBar({ target, label, detail }: { target: string; label: stri
                 {detail && <span className="block truncate text-xs opacity-70">{detail}</span>}
             </span>
             <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-(--page-base) text-(--page-text)">
-                <IconArrowDown size={18} />
+                {above ? <IconArrowUp size={18} /> : <IconArrowDown size={18} />}
             </span>
         </a>
     );

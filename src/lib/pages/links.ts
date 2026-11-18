@@ -126,7 +126,8 @@ export function tipHref(provider: TipProvider, raw: string) {
     if (provider === "link") return safeHref(value);
 
     const handle = value.replace(/\/+$/, "").replace(/^.*\//, "").replace(/^[@$]/, "");
-    if (provider === "upi") return /^[\w.-]+@[\w.-]+$/.test(handle) ? `upi://pay?pa=${encodeURIComponent(handle)}&cu=INR` : undefined;
+    // the id as written, the way UPI apps print their own QR codes (the check allows nothing that needs escaping)
+    if (provider === "upi") return /^[\w.-]+@[\w.-]+$/.test(handle) ? `upi://pay?pa=${handle}&cu=INR` : undefined;
     return /^[\w.-]+$/.test(handle) ? TIP_PAGES[provider] + handle : undefined;
 }
 

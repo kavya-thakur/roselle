@@ -9,7 +9,7 @@ import { destinationOf, hasCaseStudy, isLive, mapEmbed, mapLink, musicEmbed, saf
 import type { Block, PageDoc, Theme } from "@/lib/validations/page";
 import type { PublicReview } from "@/lib/reviews";
 import { LinkIcon, SocialIcon } from "./SocialIcon";
-import { QrCode } from "./QrCode";
+import { UpiPay } from "./UpiPay";
 import { ContactForm } from "./ContactForm";
 import { ServicesBlock } from "./ServicesBlock";
 import { HireBar } from "./HireBar";
@@ -101,7 +101,7 @@ export function PageRenderer({ page, mode = "live", pageId, username, reviews = 
                             ) : (
                                 <Avatar src={profile.avatar} name={profile.name} shape={theme.layout.avatar} centered={!left} live={mode === "live"} />
                             )}
-                            <Profile profile={profile} centered={!left} cta={cta} />
+                            <Profile profile={profile} centered={!left} cta={cta} live={mode === "live"} />
                         </header>
                     )}
 
@@ -157,9 +157,10 @@ interface ProfileProps {
     size?: "regular" | "poster";
     // the button to the way to hire, when there is one
     cta?: { href: string; label: string };
+    live: boolean;
 }
 
-function Profile({ profile, centered, size = "regular", cta }: ProfileProps) {
+function Profile({ profile, centered, size = "regular", cta, live }: ProfileProps) {
     return (
         <>
             <h1
@@ -187,7 +188,16 @@ function Profile({ profile, centered, size = "regular", cta }: ProfileProps) {
                 <ul className={`mt-5 flex flex-wrap gap-1 ${centered ? "justify-center" : "-ml-2.5"}`}>
                     {profile.socials.map((social) => {
                         const target = socialHref(social.platform, social.url);
-                        if (!target) return null;
+                        // visitors never see an icon that goes nowhere; the editor's preview shows it
+                        // faded, so adding one visibly does something before its link is typed
+                        if (!target) {
+                            if (live) return null;
+                            return (
+                                <li key={social.platform} title="Add the link to show this icon" className="flex size-10 items-center justify-center opacity-30">
+                                    <SocialIcon platform={social.platform} size={19} />
+                                </li>
+                            );
+                        }
                         return (
                             <li key={social.platform}>
                                 <a
@@ -229,7 +239,7 @@ function Poster({ profile, cta, live }: { profile: PageDoc["profile"]; cta?: Pro
                 shade keeps the name readable, ending clear so nothing meets the background in a line */}
             <span className="absolute inset-0 bg-[linear-gradient(180deg,transparent_35%,color-mix(in_oklab,var(--page-base)_55%,transparent)_72%,transparent_100%)]" />
             <div className="rise relative mx-auto w-full max-w-xl px-5 pb-6 @md:px-8">
-                <Profile profile={profile} centered size="poster" cta={cta} />
+                <Profile profile={profile} centered size="poster" cta={cta} live={live} />
             </div>
         </header>
     );
@@ -583,26 +593,24 @@ function BlockView({ block, linkOf, pageId, reviews }: BlockViewProps) {
 
             const upi = href.startsWith("upi:");
             const Icon = upi ? IconCurrencyRupee : block.provider === "kofi" || block.provider === "buymeacoffee" ? IconCoffee : IconHeart;
+            const label = (
+                <>
+                    <span className="flex size-10 shrink-0 items-center justify-center">
+                        <Icon size={22} stroke={1.6} aria-hidden />
+                    </span>
+                    <span className="flex-1 text-center text-pretty">
+                        {block.title || "Support me"}
+                        {block.provider !== "link" && <span className="block text-xs font-normal opacity-70">with {TIP_LABELS[block.provider]}</span>}
+                    </span>
+                    <span className="w-10 shrink-0" />
+                </>
+            );
+            // UPI opens its QR code in a popup: scanned on a computer, or opened in the app on a phone
+            if (upi) return <UpiPay href={href}>{label}</UpiPay>;
             return (
-                <div className="flex flex-col gap-3">
-                    <a href={href} target={upi ? undefined : "_blank"} rel="noopener noreferrer" className="page-button flex min-h-14 w-full items-center gap-2 px-3 py-2 text-[15px] font-semibold">
-                        <span className="flex size-10 shrink-0 items-center justify-center">
-                            <Icon size={22} stroke={1.6} aria-hidden />
-                        </span>
-                        <span className="flex-1 text-center text-pretty">
-                            {block.title || "Support me"}
-                            {block.provider !== "link" && <span className="block text-xs font-normal opacity-70">with {TIP_LABELS[block.provider]}</span>}
-                        </span>
-                        <span className="w-10 shrink-0" />
-                    </a>
-                    {/* a UPI link only opens on a phone; someone on a computer scans this with theirs */}
-                    {upi && (
-                        <div className="page-card flex items-center gap-4 p-4">
-                            <QrCode value={href} size={104} className="shrink-0 rounded-lg" />
-                            <p className="text-sm text-pretty text-(--page-muted)">On a computer? Scan this with any UPI app to pay.</p>
-                        </div>
-                    )}
-                </div>
+                <a href={href} target="_blank" rel="noopener noreferrer" className="page-button flex min-h-14 w-full items-center gap-2 px-3 py-2 text-[15px] font-semibold">
+                    {label}
+                </a>
             );
         }
     }

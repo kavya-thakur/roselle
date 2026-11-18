@@ -25,7 +25,8 @@ interface SettingsViewProps {
     billing: Billing;
 }
 
-const section = "mt-6 rounded-2xl border border-line bg-paper p-6 shadow-soft";
+// the same card as the analytics page
+const section = "rounded-3xl bg-paper p-5 shadow-soft sm:p-6";
 const notice = (ok: boolean) => `rounded-xl px-3.5 py-2.5 text-sm ${ok ? "bg-success/10 text-success" : "bg-blush text-pink"}`;
 
 export function SettingsView({ email, username, plan, weeklyEmail, emailVerified, justVerified, billing }: SettingsViewProps) {
@@ -56,33 +57,42 @@ export function SettingsView({ email, username, plan, weeklyEmail, emailVerified
 
     return (
         <main className="flex-1 overflow-y-auto">
-            <div className="mx-auto max-w-2xl px-5 py-8 sm:px-6 sm:py-12">
+            <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6 sm:py-12">
                 <h1 className="font-display text-5xl">Settings</h1>
+                <p className="mt-2 text-sm text-muted">Your address, your plan and how you sign in.</p>
 
-                <section className="mt-10 rounded-2xl border border-line bg-paper p-6 shadow-soft">
-                    <h2 className="text-lg font-semibold">Your address</h2>
-                    <p className="mt-1 text-sm text-muted">The link you put in your bio. If you change it, the old one stops working and someone else could claim it.</p>
+                {/* forms on the left; the plan stays in view beside them on wide screens */}
+                <div className="mt-8 grid items-start gap-3 lg:grid-cols-[1.4fr_1fr]">
+                    <div className="grid gap-3">
+                        <section className={section}>
+                            <h2 className="text-lg font-semibold">Your address</h2>
+                            <p className="mt-1 text-sm text-muted">The link you put in your bio. If you change it, the old one stops working and someone else could claim it.</p>
 
-                    <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-5 space-y-4">
-                        <Field label="Username" htmlFor="username" error={errors.username?.message}>
-                            <div className={`${inputClass} flex items-center px-0 focus-within:border-pink focus-within:bg-white`} aria-invalid={!!errors.username}>
-                                <span className="pl-3.5 text-faint select-none">{SITE_HOST}/</span>
-                                <input id="username" autoCapitalize="none" spellCheck={false} aria-invalid={!!errors.username} {...register("username")} className="h-full min-w-0 flex-1 bg-transparent pr-3.5 font-semibold outline-none" />
-                            </div>
-                        </Field>
+                            <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-5 space-y-4">
+                                <Field label="Username" htmlFor="username" error={errors.username?.message}>
+                                    <div className={`${inputClass} flex items-center px-0 focus-within:border-pink focus-within:bg-white`} aria-invalid={!!errors.username}>
+                                        <span className="pl-3.5 text-faint select-none">{SITE_HOST}/</span>
+                                        <input id="username" autoCapitalize="none" spellCheck={false} aria-invalid={!!errors.username} {...register("username")} className="h-full min-w-0 flex-1 bg-transparent pr-3.5 font-semibold outline-none" />
+                                    </div>
+                                </Field>
 
+                                <Button type="submit" busy={isSubmitting} disabled={!changed}>
+                                    Change address
+                                </Button>
+                            </form>
+                        </section>
 
-                        <Button type="submit" busy={isSubmitting} disabled={!changed}>
-                            Change address
-                        </Button>
-                    </form>
-                </section>
+                        <AccountSection email={email} plan={plan} emailVerified={emailVerified} justVerified={justVerified} />
+                        <EmailsSection weeklyEmail={weeklyEmail} />
+                        <PasswordSection />
+                        <DeleteSection />
+                    </div>
 
-                <PlanSection billing={billing} email={email} />
-                <AccountSection email={email} plan={plan} emailVerified={emailVerified} justVerified={justVerified} />
-                <EmailsSection weeklyEmail={weeklyEmail} />
-                <PasswordSection />
-                <DeleteSection />
+                    {/* first on phones: it's the one card here that changes what the page looks like */}
+                    <div className="-order-1 lg:sticky lg:top-6 lg:order-none">
+                        <PlanSection billing={billing} email={email} />
+                    </div>
+                </div>
             </div>
         </main>
     );
@@ -197,7 +207,7 @@ function DeleteSection() {
     }
 
     return (
-        <section className={`${section} border-danger/30`}>
+        <section className={`${section} border border-danger/25`}>
             <h2 className="text-lg font-semibold">Delete account</h2>
             <p className="mt-1 text-sm text-muted">Your page goes offline and its address is free for anyone. Your links, images and analytics are deleted for good.</p>
 

@@ -138,7 +138,7 @@ export function PlanSection({ billing, email }: { billing: Billing; email: strin
 
     if (pro) {
         return (
-            <section id="plan" className="mt-6 scroll-mt-6 rounded-2xl border border-line bg-paper p-6 shadow-soft">
+            <section id="plan" className="scroll-mt-6 rounded-3xl bg-paper p-5 shadow-soft sm:p-6">
                 <h2 className="flex items-center gap-2 text-lg font-semibold">
                     <IconCrown size={20} className="text-pink" /> You&apos;re on Pro
                 </h2>
@@ -167,7 +167,7 @@ export function PlanSection({ billing, email }: { billing: Billing; email: strin
     }
 
     return (
-        <section id="plan" className="mt-6 scroll-mt-6 overflow-hidden rounded-2xl border border-line bg-paper shadow-soft">
+        <section id="plan" className="scroll-mt-6 overflow-hidden rounded-3xl bg-paper shadow-soft">
             <div className="bg-forest p-6 text-white">
                 <p className="flex items-center gap-2 text-sm font-semibold text-rose">
                     <IconCrown size={18} /> Roselle Pro

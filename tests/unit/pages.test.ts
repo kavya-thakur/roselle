@@ -175,7 +175,7 @@ describe("music, tips and icons", () => {
         expect(tipHref("kofi", "https://ko-fi.com/ada/")).toBe("https://ko-fi.com/ada");
         expect(tipHref("cashapp", "$ada")).toBe("https://cash.app/$ada");
         expect(tipHref("paypal", "@ada")).toBe("https://paypal.me/ada");
-        expect(tipHref("upi", "ada@okbank")).toBe("upi://pay?pa=ada%40okbank&cu=INR");
+        expect(tipHref("upi", "ada@okbank")).toBe("upi://pay?pa=ada@okbank&cu=INR");
         expect(tipHref("upi", "not a upi id")).toBeUndefined();
         expect(tipHref("link", "javascript:alert(1)")).toBeUndefined();
         expect(tipHref("kofi", "ada<script>")).toBeUndefined();
