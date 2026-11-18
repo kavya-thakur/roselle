@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { IconArrowLeft, IconBrush, IconCamera, IconPalette, IconSparkles } from "@tabler/icons-react";
+import { IconArrowLeft, IconBarbell, IconBrush, IconCamera, IconHanger, IconMicrophone2, IconPalette, IconSchool, IconSparkles, IconUserStar, IconWand } from "@tabler/icons-react";
 
 import { Button } from "@/components/Button";
 import { Dropdown } from "@/components/Dropdown";
@@ -23,13 +23,19 @@ const CURRENCY_OPTIONS = CURRENCIES.map((code) => ({ value: code as string, labe
 
 type Currency = (typeof CURRENCIES)[number];
 
-const ICONS = { photographer: IconCamera, designer: IconPalette, illustrator: IconBrush, other: IconSparkles };
+const ICONS = { photographer: IconCamera, designer: IconPalette, illustrator: IconBrush, model: IconUserStar, makeup: IconWand, stylist: IconHanger, musician: IconMicrophone2, tutor: IconSchool, fitness: IconBarbell, other: IconSparkles };
 
 // An example intro for each craft, as the bio box's placeholder
 const BIO_EXAMPLES: Record<Craft, string> = {
     photographer: "Wedding and portrait photographer in Jaipur.",
     designer: "Brand and web designer for small, ambitious companies.",
     illustrator: "Illustrator drawing people, plants and cities.",
+    model: "Fashion and commercial model based in Mumbai.",
+    makeup: "Bridal and party makeup artist in Delhi.",
+    stylist: "Personal and editorial stylist in Bengaluru.",
+    musician: "Singer and guitarist for weddings and events.",
+    tutor: "Maths and science tutor for classes 8 to 12.",
+    fitness: "Strength and fat-loss coach, in person and online.",
     other: "What you do, in one line.",
 };
 

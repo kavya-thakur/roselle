@@ -10,6 +10,12 @@ export const CRAFTS = {
     photographer: { label: "Photographer", hint: "Weddings, portraits, brands, events", looks: ["noir", "poster", "studio", "bordeaux"] },
     designer: { label: "Designer", hint: "Brands, websites, products, type", looks: ["studio", "poster", "candy", "starlight"] },
     illustrator: { label: "Illustrator or artist", hint: "Commissions, editorial, prints", looks: ["picnic", "bloom", "sweetheart", "butter"] },
+    model: { label: "Model", hint: "Fashion, commercial, runway", looks: ["noir", "photo", "poster", "bordeaux"] },
+    makeup: { label: "Makeup artist", hint: "Bridal, events, shoots", looks: ["blush", "rosebud", "sweetheart", "velvet"] },
+    stylist: { label: "Stylist", hint: "Personal styling, wardrobes, shoots", looks: ["poster", "leopard", "cherry", "mocha"] },
+    musician: { label: "Musician or singer", hint: "Events, sessions, lessons", looks: ["starlight", "velvet", "sunset", "noir"] },
+    tutor: { label: "Tutor or teacher", hint: "Classes, coaching, exam prep", looks: ["sage", "butter", "forest", "lavender"] },
+    fitness: { label: "Fitness coach", hint: "Training, plans, nutrition", looks: ["tangerine", "pop", "noir", "pistachio"] },
     other: { label: "Something else", hint: "Start simple and build from there", looks: ["forest", "rosebud", "velvet", "pop"] },
 } as const;
 
@@ -86,6 +92,131 @@ function blocksFor(craft: Craft, currency: Currency): object[] {
                 reviews,
                 contact("Commissions and collaborations are open. Tell me what you have in mind."),
                 { id: "tips", type: "tip", title: "Support my work", provider: "kofi", handle: "" },
+                { id: "instagram", type: "link", title: "Instagram", url: "", icon: "instagram" },
+            ];
+        case "model":
+            return [
+                { id: "work", type: "gallery", title: "Portfolio", layout: "masonry" },
+                // the numbers a casting asks for first; each shows once it has a value
+                {
+                    id: "stats",
+                    type: "stats",
+                    title: "",
+                    items: [
+                        { id: "height", value: "", label: "Height" },
+                        { id: "sizes", value: "", label: "Bust · waist · hips" },
+                        { id: "shoe", value: "", label: "Shoe" },
+                        { id: "city", value: "", label: "Based in" },
+                    ],
+                },
+                {
+                    id: "services",
+                    type: "services",
+                    title: "Book me for",
+                    items: [
+                        service("editorial", "Editorial shoot", 400, "A day on set for a magazine, a lookbook or a designer.", currency),
+                        service("campaign", "Brand campaign", 1000, "Photos and video for a brand's launch, with usage rights agreed up front.", currency),
+                        service("runway", "Runway show", 250, "Fittings, rehearsal and the show itself.", currency),
+                    ],
+                },
+                reviews,
+                contact("Tell me about the shoot: the brand, the dates and where it is."),
+                { id: "instagram", type: "link", title: "Instagram", url: "", icon: "instagram" },
+            ];
+        case "makeup":
+            return [
+                { id: "work", type: "gallery", title: "My work", layout: "grid" },
+                {
+                    id: "services",
+                    type: "services",
+                    title: "Services",
+                    items: [
+                        { ...service("bridal", "Bridal makeup", 300, "Makeup and hair for the big day, with a trial beforehand.", currency), featured: true },
+                        service("party", "Party and event makeup", 60, "For a reception, a party or a photoshoot.", currency),
+                        service("trial", "Trial session", 40, "Try the look before the day, and change what you like.", currency),
+                    ],
+                },
+                reviews,
+                contact("Tell me the date, the occasion and where you'll be getting ready."),
+                { id: "instagram", type: "link", title: "Instagram", url: "", icon: "instagram" },
+            ];
+        case "stylist":
+            return [
+                { id: "work", type: "gallery", title: "Looks", layout: "masonry" },
+                {
+                    id: "services",
+                    type: "services",
+                    title: "Services",
+                    items: [
+                        service("personal", "Personal styling", 100, "A session on what suits you, and a shopping list to go with it.", currency),
+                        service("wardrobe", "Wardrobe edit", 150, "We go through what you own, keep the best, and build outfits from it.", currency),
+                        service("shoot", "Shoot styling", 400, "Clothes and accessories pulled, fitted and styled for a day on set.", currency),
+                    ],
+                },
+                { id: "picks", type: "picks", title: "Wardrobe favourites", layout: "carousel" },
+                reviews,
+                contact("Tell me what you're dressing for, and when."),
+                { id: "instagram", type: "link", title: "Instagram", url: "", icon: "instagram" },
+            ];
+        case "musician":
+            return [
+                { id: "listen", type: "music", title: "Listen" },
+                { id: "live", type: "video", title: "Live" },
+                {
+                    id: "services",
+                    type: "services",
+                    title: "Book me",
+                    items: [
+                        service("event", "Wedding or event", 500, "A live set for your wedding, party or company event.", currency),
+                        service("session", "Studio session", 200, "Vocals or an instrument recorded for your track.", currency),
+                        service("lessons", "Private lesson", 25, "An hour, at your level, in person or online.", currency),
+                    ],
+                },
+                reviews,
+                contact("Tell me the date, the venue and the kind of event."),
+                { id: "spotify", type: "link", title: "Spotify", url: "", icon: "spotify" },
+                { id: "instagram", type: "link", title: "Instagram", url: "", icon: "instagram" },
+            ];
+        case "tutor":
+            return [
+                {
+                    id: "services",
+                    type: "services",
+                    title: "Classes",
+                    items: [
+                        service("one", "One-to-one class", 15, "An hour on exactly what the student needs, in person or online.", currency),
+                        service("group", "Group batch", 40, "A month of weekly classes in a small group.", currency),
+                        service("exam", "Exam prep", 150, "A plan to the exam date, with practice papers marked.", currency),
+                    ],
+                },
+                {
+                    id: "stats",
+                    type: "stats",
+                    title: "",
+                    items: [
+                        { id: "students", value: "", label: "Students taught" },
+                        { id: "years", value: "", label: "Years teaching" },
+                    ],
+                },
+                { id: "reviews", type: "reviews", title: "What students say" },
+                contact("Tell me who the classes are for, the subject and the level."),
+                { id: "youtube", type: "link", title: "YouTube", url: "", icon: "youtube" },
+            ];
+        case "fitness":
+            return [
+                { id: "work", type: "gallery", title: "Client results", layout: "grid" },
+                {
+                    id: "services",
+                    type: "services",
+                    title: "Plans",
+                    items: [
+                        { ...service("coaching", "Monthly coaching", 80, "Training plan, diet plan and weekly check-ins.", currency), featured: true },
+                        service("session", "Personal training session", 20, "One hour, one to one, in person or online.", currency),
+                        service("diet", "Diet plan", 30, "Meals planned around your goal and what you like to eat.", currency),
+                    ],
+                },
+                reviews,
+                contact("Tell me your goal and how you like to train."),
                 { id: "instagram", type: "link", title: "Instagram", url: "", icon: "instagram" },
             ];
         case "other":
